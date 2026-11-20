@@ -53,6 +53,7 @@ function route(){
   if(h[0]==="me")return me();
   if(h[0]==="hw")return hwPage();
   if(h[0]==="rating")return ratingPage();
+  if(h[0]==="geo")return geoPage(h.map(x=>decodeURIComponent(x)));
   if(h[0]==="lab")return labPage(h.map(x=>decodeURIComponent(x)));
   if(h[0]==="maps")return mapsPage(h.map(x=>decodeURIComponent(x)));
   home();

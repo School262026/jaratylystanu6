@@ -14,6 +14,7 @@ function mapsMenu(){
   let h=`<a href="#/">← Басты бет</a><h1>🗺️ Контурлы карта</h1><p class="mut">Алдымен «Оқу» режимінде нысандарды үйрен, сосын «Тест» бер. Нәтиже бағаға жазылады.</p>`;
   Object.entries(MAPDEF).forEach(([a,d])=>{h+=`<h2>${d.title}</h2>`;
     Object.entries(d.sets).forEach(([s,x])=>{h+=`<div class="card" style="display:flex;gap:10px;align-items:center;justify-content:space-between"><span style="font-size:17px"><b>${x.i} ${x.t}</b></span><span style="display:flex;gap:8px"><a class="btn alt" style="width:auto;padding:8px 14px" href="#/maps/${a}/${s}/learn">📖 Оқу</a><a class="btn" style="width:auto;padding:8px 14px" href="#/maps/${a}/${s}/quiz">📝 Тест</a></span></div>`})});
+  h+=`<h2>📐 География практикумы</h2>`+GEO.map(x=>`<a class="card" style="display:flex;gap:12px;align-items:center;text-decoration:none;color:inherit" href="#/geo/${x.id}"><span style="font-size:26px">${x.i}</span><span><b>${x.t}</b><br><span class="mut">${x.p}: есептер мен тапсырмалар</span></span></a>`).join("");
   app.innerHTML=h;
 }
 
