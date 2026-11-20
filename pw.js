@@ -5,7 +5,7 @@ async function pwList(){
   const prev=user()&&user().preview;
   const st=n=>{const r=rows.filter(x=>x.type==="pw"&&x.para===n).sort((a,b)=>b.ts-a.ts)[0];return r?(r.grade?`<span class="tag">баға ${r.grade}</span>`:`<span class="tag">⏳ тексерілуде</span>`):""};
   app.innerHTML=`<a href="#/">← Басты бет</a><h1>🔬 Сарамандық жұмыстар</h1><p class="mut">Оқулықтағы практикалық және зертханалық жұмыстар. Тақырып ашылған соң орындап, нәтижесін мұғалімге жібересің.</p>`+
-   Object.keys(PW).map(Number).sort((a,b)=>a-b).map(n=>{const on=isOpen(n);return`<a class="card" style="display:block;text-decoration:none;color:inherit;${on?"":"opacity:.5;pointer-events:none"}" href="#/p/${n}/pw"><b>§${n}</b> ${esc(PW[n].t)} ${on?st(n):"<small class='mut'>🔒 мұғалім ашады</small>"}</a>`}).join("");
+   Object.keys(PW).map(Number).sort((a,b)=>a-b).map(n=>{const on=isOpen(n);return`<a class="card" style="display:block;text-decoration:none;color:inherit;${on?"":"opacity:.5;pointer-events:none"}" href="#/p/${n}/pw"><b>§${n}</b> ${esc(PW[n].t)} ${PW[n].extra?"<span class='tag'>қосымша</span>":""} ${on?st(n):"<small class='mut'>🔒 мұғалім ашады</small>"}</a>`}).join("");
 }
 async function pwWork(n,P,b){
   const W=PW[n];if(!W){b.innerHTML="<div class='card'>Бұл тақырыпта сарамандық жұмыс жоқ.</div>";return}
@@ -14,7 +14,7 @@ async function pwWork(n,P,b){
   const prev=rows.filter(x=>x.type==="pw"&&x.para===n).sort((a,b)=>b.ts-a.ts)[0];
   const locked=prev&&!(prev.grade&&prev.grade<=3);
   const inp=(i,r,c,ph)=>`<input data-i="${i}" data-r="${r}" data-c="${c}" placeholder="${esc(ph||"")}" value="${esc((d[i]||{})[r+"_"+c]||"")}" style="min-width:90px">`;
-  let h=`<h2>🔬 ${esc(W.t)}</h2>
+  let h=`<h2>🔬 ${esc(W.t)}</h2>${W.extra?"<span class='tag'>қосымша жұмыс (оқулықта жеке жұмыс жоқ)</span>":""}
   ${prev?`<div class="card" style="border-color:var(--pri)">${prev.grade?`✅ Мұғалім бағалады: <b>${prev.grade}</b>${prev.comment?" · "+esc(prev.comment):""}`:"⏳ Жұмыс мұғалімге жіберілді, тексерілуде."}</div>`:""}
   <div class="card"><b>Мақсаты:</b> ${esc(W.goal)}<br><b>Құрал-жабдықтар:</b> ${W.tools.map(esc).join("; ")}.</div>
   ${W.safety?`<div class="card" style="border-color:#e57373">${esc(W.safety)}</div>`:""}

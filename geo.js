@@ -4,7 +4,8 @@ const GEO=[
  {id:"scale",i:"📏",t:"Масштаб: арақашықтықты есептеу",p:"§13"},
  {id:"coords",i:"📍",t:"Географиялық координаттар",p:"§14"},
  {id:"find",i:"🎯",t:"Координат бойынша картадан нүкте табу",p:"§14"},
- {id:"zones",i:"🕒",t:"Сағаттық белдеулер және уақыт",p:"§15"}];
+ {id:"zones",i:"🕒",t:"Сағаттық белдеулер және уақыт",p:"§15"},
+ {id:"deposits",i:"⛏️",t:"Кен орындарын картаға түсіру",p:"§28"}];
 const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
 const pick=a=>a[Math.floor(Math.random()*a.length)];
 const fmtN=n=>String(Math.round(n*100)/100).replace(".",",");
@@ -18,8 +19,9 @@ function geoPage(h){
   const b=$("#gb");
   if(id==="symbols")geoRun(b,G,symItems());
   if(id==="scale")geoIntro(b,G,`<b>Масштаб</b> — картадағы арақашықтықтың жердегі нақты арақашықтыққа қатынасы. Мысалы, 1:2 500 000 масштабында <b>1 см = 25 км</b>.<br>Нақты арақашықтық = картадағы см × масштаб мөлшері. Экватордың 1° доғасы ≈ <b>111 км</b>.`,scaleItems);
-  if(id==="coords")geoIntro(b,G,`<b>Географиялық координаттар</b> — нүктенің ендігі (φ, экваторға қатысты) және бойлығы (λ, нөлдік меридианға қатысты). Қазақстан үшін: ендік — солтүстік (с.е.), бойлық — шығыс (ш.б.).`,coordItems);
+  if(id==="coords")geoIntro(b,G,`<b>Географиялық координаттар</b> — нүктенің ендігі (φ, экваторға қатысты) және бойлығы (λ, нөлдік меридианға қатысты). Қазақстан үшін: ендік — солтүстік (с.е.), бойлық — шығыс (ш.б.). Әлем нүктелері үшін оңтүстік ендік (о.е.) мен батыс бойлыққа (б.б.) <b>минус (−)</b> таңбасын қой.<br><b>Ендікті анықтау алгоритмі:</b> 1) картадан объектіні тап; 2) жарты шарын анықта (солтүстік/оңтүстік); 3) өтетін параллельді тап; 4) параллельдің мәнін градуспен анықта; 5) ендікті жаз. <b>Бойлықты</b> дәл солай меридиан арқылы (шығыс/батыс) анықтайды.`,coordItems);
   if(id==="find")geoIntro(b,G,`Координаттары берілген нүктені Қазақстан картасында тап. Картада әр 5° сайын ендік пен бойлық торы сызылған.`,findItems);
+  if(id==="deposits")geoIntro(b,G,`Қазақстанның ірі пайдалы қазба кен орындарын картаға түсір. Картада облыстар шекарасы, өзен-көлдер және ірі қалалар көрсетілген. Нысанды түртіп, орнын көрсет. Әр жауаптан кейін кен орнының облысы айтылады.`,depositItems);
   if(id==="zones")geoIntro(b,G,`Жер 24 сағаттық белдеуге бөлінген, әр белдеу <b>15°</b> (360°:24). Белдеулер арасындағы айырма — <b>1 сағат</b>. Шығысқа қарай уақыт артады. Астана — V белдеу (UTC+5), Лондон — 0 белдеу, Пекин — VIII белдеу.`,zoneItems);
 }
 function geoIntro(b,G,txt,mk){
@@ -35,7 +37,7 @@ function geoRun(b,G,items){
     if(q.kind==="choice"){inp.innerHTML=q.o.map((t,k)=>`<button class="opt" data-k="${k}">${t}</button>`).join("");inp.querySelectorAll(".opt").forEach(el=>el.onclick=()=>{const k=+el.dataset.k;inp.querySelectorAll(".opt").forEach((e,j)=>{e.disabled=true;if(j===q.a)e.classList.add("ok");else if(j===k)e.classList.add("no")});done(k===q.a,q.sol)})}
     else if(q.kind==="num"){inp.innerHTML=`<input id="a1" inputmode="decimal" placeholder="Жауабың${q.unit?" ("+q.unit+")":""}"><button class="btn" id="ck">Тексеру</button>`;$("#ck").onclick=()=>{const v=parseFloat($("#a1").value.replace(",","."));if(isNaN(v))return alert("Санмен жаз");done(Math.abs(v-q.ans)<=Math.max(q.tol||0,Math.abs(q.ans)*.01),q.sol)}}
     else if(q.kind==="time"){inp.innerHTML=`<input id="a1" type="time" step="60"><button class="btn" id="ck">Тексеру</button>`;$("#ck").onclick=()=>{const v=$("#a1").value;if(!v)return alert("Уақытты таңда");const [hh,mm]=v.split(":").map(Number);done((((hh*60+mm)-q.ans)%1440+1440)%1440===0,q.sol)}}
-    else if(q.kind==="coord"){inp.innerHTML=`<div class="grid"><input id="a1" inputmode="decimal" placeholder="Ендік, ° с.е."><input id="a2" inputmode="decimal" placeholder="Бойлық, ° ш.б."></div><button class="btn" id="ck">Тексеру</button>`;$("#ck").onclick=()=>{const la=parseFloat($("#a1").value.replace(",",".")),lo=parseFloat($("#a2").value.replace(",","."));if(isNaN(la)||isNaN(lo))return alert("Екі санды да жаз");done(Math.abs(la-q.lat)<=1.5&&Math.abs(lo-q.lon)<=1.5,q.sol)}}
+    else if(q.kind==="coord"){inp.innerHTML=`<div class="grid"><input id="a1" inputmode="decimal" placeholder="Ендік, ° с.е."><input id="a2" inputmode="decimal" placeholder="Бойлық, ° ш.б."></div><button class="btn" id="ck">Тексеру</button>`;$("#ck").onclick=()=>{const la=parseFloat($("#a1").value.replace(",",".")),lo=parseFloat($("#a2").value.replace(",","."));if(isNaN(la)||isNaN(lo))return alert("Екі санды да жаз");done(Math.abs(la-q.lat)<=(q.tol||1.5)&&Math.abs(lo-q.lon)<=(q.tol||1.5),q.sol)}}
     else if(q.kind==="click"){drawFind(inp,q,done)}
   };
   function done(ok,sol){if(ok)score++;$("#fb").innerHTML=`<div class="card">${ok?"✅ Дұрыс!":"❌ Қате."} ${sol||""}</div><button class="btn" id="nx">${i+1<items.length?"Келесі →":"Аяқтау"}</button>`;$("#nx").onclick=()=>{i++;i<items.length?draw():fin()};
@@ -91,8 +93,12 @@ function scaleItems(){
 
 /* ---- 3. Координаттар (есептеу) ---- */
 const CITIES=[["Атырау",47.11,51.92],["Балқаш",46.85,74.98],["Талдықорған",45.02,78.37],["Арқалық",50.25,66.92],["Астана",51.13,71.43],["Алматы",43.24,76.89],["Ақтау",43.65,51.15],["Орал",51.23,51.37],["Өскемен",49.95,82.61],["Қызылорда",44.85,65.51],["Павлодар",52.29,76.95],["Қостанай",53.21,63.63],["Ақтөбе",50.28,57.21],["Шымкент",42.32,69.59],["Семей",50.43,80.26],["Петропавл",54.87,69.15]];
+const WORLD=[["Килиманджаро жанартауы",-3.1,37.4,3],["Мехико қаласы",19.4,-99.1,2],["Канберра қаласы",-35.3,149.1,2],["Бразилиа қаласы",-15.8,-47.9,2],["Котопахи жанартауы",-0.7,-78.4,2],["Камерун жанартауы",4.2,9.2,2.5],["Каир қаласы",30.0,31.2,2],["Токио қаласы",35.7,139.7,2]];
+const sgn=(v,p,n)=>Math.abs(v).toFixed(1)+"° "+(v>=0?p:n);
 function coordItems(){
-  return shuffle(CITIES).slice(0,8).map(c=>({kind:"coord",lat:c[1],lon:c[2],q:`Картаның градус торы бойынша <b>${c[0]}</b> қаласының географиялық координаттарын анықта (жуықтап, 1–2° дәлдікпен).`,sol:`${c[0]}: ≈ <b>${c[1].toFixed(1)}° с.е., ${c[2].toFixed(1)}° ш.б.</b>`}));
+  const kz=shuffle(CITIES).slice(0,4).map(c=>({kind:"coord",lat:c[1],lon:c[2],tol:1.5,q:`Градус торы бойынша <b>${c[0]}</b> қаласының географиялық координаттарын анықта (1–2° дәлдікпен).`,sol:`${c[0]}: ≈ <b>${c[1].toFixed(1)}° с.е., ${c[2].toFixed(1)}° ш.б.</b>`}));
+  const wd=shuffle(WORLD).slice(0,4).map(c=>({kind:"coord",lat:c[1],lon:c[2],tol:c[3],q:`<b>${c[0]}</b> координаттарын анықта. (Оңтүстік ендік пен батыс бойлыққа минус таңбасын қой, мысалы: −15 және −48.)`,sol:`${c[0]}: ≈ <b>${sgn(c[1],"с.е.","о.е.")}, ${sgn(c[2],"ш.б.","б.б.")}</b> (сандармен: ${c[1].toFixed(1)}; ${c[2].toFixed(1)})`}));
+  return kz.concat(wd);
 }
 /* ---- 4. Координат бойынша картадан тап ---- */
 function findItems(){
@@ -102,10 +108,11 @@ function drawFind(inp,q,done){
   const M=MAPS.kz,X=lon=>(lon-45)*6.6,Y=lat=>(56-lat)*10;
   let g="";for(let lo=45;lo<=90;lo+=5)g+=`<path d="M${X(lo)},0V${Y(39.5)}" stroke="#7a8" stroke-width=".3"/><text x="${X(lo)+.5}" y="6" font-size="4" fill="#355">${lo}°</text>`;
   for(let la=40;la<=55;la+=5)g+=`<path d="M0,${Y(la)}H290" stroke="#7a8" stroke-width=".3"/><text x="1" y="${Y(la)-.8}" font-size="4" fill="#355">${la}°</text>`;
+  if(q.ref)g=M.lakes.map(l=>`<path d="${l.d}" fill="#7fc4ec" stroke="#2a7fb5" stroke-width=".3"/>`).join("")+M.rivers.map(r=>`<path d="${r.d}" fill="none" stroke="#2a7fb5" stroke-width=".7"/>`).join("")+M.cities.map(c=>`<circle cx="${c.x}" cy="${c.y}" r="1.4" fill="#d33"/><text x="${c.x+2}" y="${c.y+1}" font-size="3.6" fill="#333">${c.id}</text>`).join("");
   inp.innerHTML=`<svg id="fsv" viewBox="${M.vb}" style="width:100%;display:block;background:#bfe0f4;border-radius:12px">${M.neigh.map(d=>`<path d="${d}" fill="#e3e3e3" stroke="#aaa" stroke-width=".3"/>`).join("")}${M.regions.map(r=>`<path d="${r.d}" fill="#f4efe0" stroke="#999" stroke-width=".3"/>`).join("")}${g}<g id="fm"></g></svg><p class="mut">Нүктені түртіп таңда.</p>`;
   const svg=$("#fsv");let lock=false;
   svg.onclick=ev=>{if(lock)return;lock=true;const p=svg.createSVGPoint();p.x=ev.clientX;p.y=ev.clientY;const c=p.matrixTransform(svg.getScreenCTM().inverse());
-    const lo=c.x/6.6+45,la=56-c.y/10,ok=Math.hypot(lo-q.lon,(la-q.lat)*1.1)<=2.2;
+    const lo=c.x/6.6+45,la=56-c.y/10,ok=Math.hypot(lo-q.lon,(la-q.lat)*1.1)<=(q.tol||2.2);
     $("#fm").innerHTML=`<circle cx="${c.x}" cy="${c.y}" r="2.5" fill="${ok?"#3cb371":"#d33"}"/><circle cx="${X(q.lon)}" cy="${Y(q.lat)}" r="3" fill="none" stroke="#d33" stroke-width="1"/>`;
     done(ok,q.sol+" Сен көрсеткен нүкте: ≈ "+la.toFixed(1)+"° с.е., "+lo.toFixed(1)+"° ш.б.")}
 }
@@ -122,4 +129,10 @@ function zoneItems(){
     else{const lon=pick([15,30,45,60,75,90,105,120,135]),lo2=lon+rnd(-5,5);const bn=Math.round(lo2/15);
       out.push({kind:"num",unit:"белдеу №",ans:bn,tol:0,q:`Нүктенің бойлығы <b>${lo2}° ш.б.</b> Ол қай сағаттық белдеуде орналасқан? (нөмірін жаз; белдеу 15°, нөлдік белдеу 7°30′ б.б. мен 7°30′ ш.б. аралығында)`,sol:`${lo2} : 15 = ${(lo2/15).toFixed(1)} ≈ <b>${bn}</b>-белдеу.`})}}
   return out;
+}
+
+/* ---- 6. Кен орындарын картаға түсіру (§28) ---- */
+const DEPOSITS=[["Қарағанды алабы","көмір",49.8,73.1,"Қарағанды облысы"],["Екібастұз алабы","көмір",51.7,75.3,"Павлодар облысы"],["Қашаған","мұнай",46.2,51.3,"Атырау облысы (Каспий теңізі)"],["Теңіз","мұнай",46.2,53.4,"Атырау облысы"],["Құмкөл","мұнай",46.0,65.3,"Қызылорда облысы"],["Қарашығанақ","газ",51.3,53.2,"Батыс Қазақстан облысы"],["Жаңажол","газ",48.8,57.2,"Ақтөбе облысы"],["Қашар","темір кені",52.9,63.1,"Қостанай облысы"],["Соколов-Сарыбай","темір кені",52.9,63.4,"Қостанай облысы"],["Жезді","марганец (түсті металл)",47.8,67.7,"Ұлытау облысы"],["Қоңырат","мыс",47.4,75.0,"Қарағанды облысы"],["Ащысай","полиметалл кені",43.6,69.0,"Түркістан облысы"],["Васильков (Алтынтау)","алтын",53.0,70.4,"Ақмола облысы"]];
+function depositItems(){
+  return shuffle(DEPOSITS).slice(0,10).map(d=>({kind:"click",ref:true,tol:3,lat:d[2],lon:d[3],q:`Картадан <b>${d[0]}</b> кен орнын (${d[1]}) тап және түрт.`,sol:`<b>${d[0]}</b> — ${d[1]}, ${d[4]}.`}));
 }
