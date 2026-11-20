@@ -258,8 +258,8 @@ function renderTeacher(rows,tc){
   const by={};rows.filter(x=>x.pct!=null).forEach(x=>{const k=x.name+"|"+x.cls;(by[k]=by[k]||[]).push(x.pct)});
   const pend=rows.filter(x=>x.type==="ws"&&!x.grade).sort((a,b)=>b.ts-a.ts),all=rows.sort((a,b)=>b.ts-a.ts);
   app.innerHTML=`<a href="#/">← Басты бет</a> · <a href="#" id="out">Шығу</a><h1>🔐 Мұғалім панелі</h1><button class="btn" id="pv">👀 Оқушы ретінде көру (тест-оқушы)</button><p class="mut">Барлық 60 тақырып ашық, нәтижелер сақталмайды және оқушыларға көрінбейді.</p>
-  <h2>Оқушылар үлгерімі</h2><div class="card"><table><tr><th>Оқушы</th><th>Сынып</th><th>Тест саны</th><th>Орташа</th><th>Баға</th></tr>`+
-  Object.entries(by).map(([k,v])=>{const [n,c]=k.split("|"),avg=Math.round(v.reduce((a,b)=>a+b,0)/v.length);return `<tr><td>${esc(n)}</td><td>${esc(c)}</td><td>${v.length}</td><td>${avg}%</td><td><b>${grade(avg)}</b></td></tr>`}).join("")+`</table></div>
+  <h2>Оқушылар үлгерімі</h2><div class="card"><table><tr><th>Оқушы</th><th>Сынып</th><th>Тест саны</th><th>Орташа</th><th>Баға</th><th></th></tr>`+
+  Object.entries(by).map(([k,v])=>{const [n,c]=k.split("|"),avg=Math.round(v.reduce((a,b)=>a+b,0)/v.length);return `<tr><td>${esc(n)}</td><td>${esc(c)}</td><td>${v.length}</td><td>${avg}%</td><td><b>${grade(avg)}</b></td><td><button class="btn alt" data-dl="${esc(k)}" style="padding:2px 8px;font-size:13px">🗑</button></td></tr>`}).join("")+`</table></div>
   <h2>Тексеруді күтетін жұмыс парақтары (${pend.length})</h2>`+
   (pend.map(x=>`<div class="card"><b>${esc(x.name)}</b> · ${esc(x.cls)} · §${x.para} <span class="tag">${new Date(x.ts).toLocaleString("kk-KZ")}</span>`+
     x.ans.map(a=>`<p><span class="mut">${esc(a.q)}</span><br>${esc(a.a)}</p>`).join("")+
@@ -271,6 +271,9 @@ function renderTeacher(rows,tc){
   app.querySelectorAll("[data-s]").forEach(bt=>bt.onclick=async()=>{const id=bt.dataset.s,g=+app.querySelector(`[data-g="${id}"]`).value,c=app.querySelector(`[data-c="${id}"]`).value;
     if(API){try{const r=await api({action:"grade",pass:TP,id,grade:g,comment:c});if(!r.ok)throw 0}catch(e){return alert("Қате: баға сақталмады")}}
     const x=rows.find(r=>r.id===id);x.grade=g;x.comment=c;x.status="graded";if(!API)ls.set("jt_res",rows);renderTeacher(rows,tc)});
+  app.querySelectorAll("[data-dl]").forEach(bt=>bt.onclick=async()=>{const [n,c]=bt.dataset.dl.split("|");
+    if(!confirm(n+" ("+c+") оқушысының БАРЛЫҚ нәтижесін өшіру? Қайтару мүмкін емес."))return;
+    try{const r=await api({action:"delres",pass:TP,name:n,cls:c});if(!r.ok)throw 0;alert("Өшірілді: "+r.deleted+" жазба");teacher()}catch(e){alert("Қате: өшірілмеді. Серверді жаңарттыңыз ба?")}});
   $("#csv").onclick=()=>{const L=[["Күні","Оқушы","Сынып","Түрі","§","Балл","%","Баға","Пікір"]].concat(all.map(x=>[new Date(x.ts).toLocaleString("kk-KZ"),x.name,x.cls,TYPES[x.type]||x.type,x.para,x.score!=null?x.score+"/"+x.max:"",x.pct??"",x.grade??"",x.comment||""]));
     const t="﻿"+L.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(";")).join("\n"),a=document.createElement("a");
     a.href=URL.createObjectURL(new Blob([t],{type:"text/csv"}));a.download="natizheler.csv";a.click()};

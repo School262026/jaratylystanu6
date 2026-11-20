@@ -73,7 +73,9 @@ function doPost(e){
     if(a==="mine"){const u=auth_(b);if(!u)return out_({ok:false,err:"auth"});
       return out_({ok:true,rows:rows_().filter(r=>r.name===u.name&&r.cls===u.cls)})}
     /* --- мұғалім --- */
-    if(!isT_(b.pass))return out_({ok:false});
+    if(failed_("T")>=MAXFAIL)return out_({ok:false,err:"locked"});
+    if(!isT_(b.pass)){addFail_("T");return out_({ok:false})}
+    clearFail_("T");
     if(a==="list")return out_({ok:true,rows:rows_()});
     if(a==="tconfig"){const c=cfg_();return out_({ok:true,open:c.open,classes:c.classes,roster:c.roster||{},users:users_().map(r=>({name:r[1],cls:r[2],ts:r[5]}))})}
     if(a==="setcfg"){const c=cfg_();
@@ -81,6 +83,10 @@ function doPost(e){
       if(b.classes&&typeof b.classes==="object"){const cl={};Object.keys(b.classes).forEach(k=>{const v=String(b.classes[k]).trim().toUpperCase();if(k&&v)cl[k]=v});c.classes=cl}
       if(b.roster&&typeof b.roster==="object"){const r={};Object.keys(b.roster).forEach(k=>{r[k]=(b.roster[k]||[]).map(x=>String(x).trim().replace(/\s+/g," ")).filter(x=>x.length>=3)});c.roster=r}
       P_().setProperty("CONFIG",JSON.stringify(c));return out_({ok:true})}
+    if(a==="delres"){const t=sh_(),v=t.getDataRange().getValues();let n=0;
+      for(let i=v.length-1;i>=1;i--)if(v[i][HEAD.indexOf("name")]===b.name&&String(v[i][HEAD.indexOf("cls")])===String(b.cls)){t.deleteRow(i+1);n++}
+      if(b.user){const u=findU_(norm_(b.name)+"|"+b.cls);if(u)ush_().deleteRow(u.row)}
+      return out_({ok:true,deleted:n})}
     if(a==="resetpw"){const u=findU_(norm_(b.name)+"|"+b.cls);if(!u)return out_({ok:false});ush_().deleteRow(u.row);return out_({ok:true})}
     if(a==="grade"){const t=sh_(),ids=t.getRange(2,1,Math.max(t.getLastRow()-1,1),1).getValues().flat(),i=ids.indexOf(b.id);
       if(i<0)return out_({ok:false});
