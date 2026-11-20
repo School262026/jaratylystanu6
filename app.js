@@ -1,5 +1,5 @@
 /* Жаратылыстану 6 — оқушы және мұғалім қосымшасы (1-кезең) */
-const API=""; // Apps Script Web App URL (Code.gs орналастырған соң осында қойылады). Бос болса — деректер тек осы телефонда сақталады.
+const API="https://script.google.com/macros/s/AKfycbztipI5vYSBzybybwFl_CaTV0TKCr19sb7LbXy4t0g6laoriBo9bgEdcKdwx4JO7k_rmg/exec"; // Apps Script Web App URL (Code.gs орналастырған соң осында қойылады). Бос болса — деректер тек осы телефонда сақталады.
 const $=s=>document.querySelector(s), app=$("#app");
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const md=s=>esc(s).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>");
