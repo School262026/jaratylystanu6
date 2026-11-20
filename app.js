@@ -13,7 +13,7 @@ const isOpen=n=>{const u=ls.get("jt_user",null);return !!(u&&u.preview)||OPEN.ha
 let OPEN=new Set(ls.get("jt_open",Array.from({length:20},(_,i)=>i+1)));
 async function loadOpen(){try{const r=await api({action:"config"});if(r.ok){const n=new Set(r.open);const ch=n.size!==OPEN.size||[...n].some(x=>!OPEN.has(x));OPEN=n;ls.set("jt_open",r.open);if(r.qt){QTOPEN=r.qt;ls.set("jt_qt",r.qt)}if(r.links){LINKS=r.links;ls.set("jt_links",r.links)}if(typeof r.rating==="boolean"){RATING=r.rating;ls.set("jt_rating",r.rating)}if(ch&&/^(#\/?|#\/p\/\d+)?$/.test(location.hash))route()}}catch(e){}}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-const TYPES={read:"Оқып танысты",qt:"Тоқсандық тест",pw:"Сарамандық жұмыс",hw:"Үй тапсырмасы (қайталау)",lab:"Лаборатория",map:"Контурлы карта",kviz:"Квиз-тест",test:"Тест",nis:"НИШ-тест",quiz:"Викторина",game:"Ойын",ws:"Жұмыс парағы"};
+const TYPES={jb:"БЖБ/ТЖБ дайындық",read:"Оқып танысты",qt:"Тоқсандық тест",pw:"Сарамандық жұмыс",hw:"Үй тапсырмасы (қайталау)",lab:"Лаборатория",map:"Контурлы карта",kviz:"Квиз-тест",test:"Тест",nis:"НИШ-тест",quiz:"Викторина",game:"Ойын",ws:"Жұмыс парағы"};
 
 /* ---------- сақтау және синхрондау ---------- */
 async function api(body){
@@ -51,6 +51,7 @@ function route(){
   if(!u)return login();
   if(h[0]==="p"){const n=+h[1];if(!isOpen(n)){alert("Бұл тақырып әзірге жабық. Мұғалім ашады.");location.hash="#/";return}return h[2]?topicPage(n,h[2]):topic(n)}
   if(h[0]==="me")return me();
+  if(h[0]==="jb")return jbPage(h.map(x=>decodeURIComponent(x)));
   if(h[0]==="qt")return qtPage(h.map(x=>decodeURIComponent(x)));
   if(h[0]==="pw")return pwList();
   if(h[0]==="hw")return hwPage();
@@ -94,7 +95,7 @@ function home(rows0){
   const dm=doneMap(rows);
   if(!rows0&&!uu.preview)mine().then(r=>{if(r&&(location.hash==="#/"||location.hash===""||location.hash==="#"))home(r)});
   let h=`<h1>Жаратылыстану · 6-сынып</h1><p class="mut">Атамұра оқулығы бойынша. Параграфты таңда.</p>${newBanner()}${uu.preview?"":statusBanner(dm)}
-  <div class="grid"><a class="tile" href="#/maps"><span>🗺️</span>Контурлы карта</a><a class="tile" href="#/lab"><span>🧪</span>Лаборатория</a><a class="tile" href="#/qt"><span>📚</span>Тоқсандық тест</a><a class="tile" href="#/pw"><span>🔬</span>Сарамандық жұмыс</a><a class="tile" href="#/hw"><span>🏠</span>Үй тапсырмасы</a>${RATING&&!(user()&&user().preview)?`<a class="tile" href="#/rating"><span>🏆</span>Рейтинг</a>`:""}<a class="tile" href="#/me"><span>📊</span>Менің нәтижем</a><a class="tile" href="#/teacher"><span>🔐</span>Мұғалім</a></div>`;
+  <div class="grid"><a class="tile" href="#/maps"><span>🗺️</span>Контурлы карта</a><a class="tile" href="#/lab"><span>🧪</span>Лаборатория</a><a class="tile" href="#/qt"><span>📚</span>Тоқсандық тест</a><a class="tile" href="#/jb"><span>📝</span>БЖБ / ТЖБ дайындық</a><a class="tile" href="#/pw"><span>🔬</span>Сарамандық жұмыс</a><a class="tile" href="#/hw"><span>🏠</span>Үй тапсырмасы</a>${RATING&&!(user()&&user().preview)?`<a class="tile" href="#/rating"><span>🏆</span>Рейтинг</a>`:""}<a class="tile" href="#/me"><span>📊</span>Менің нәтижем</a><a class="tile" href="#/teacher"><span>🔐</span>Мұғалім</a></div>`;
   SECTIONS.forEach(([t,[a,b]])=>{h+=`<h2>${esc(t)}</h2><div class="card plist">`;
     for(let i=a;i<=b;i++){const on=!!PARA[i]&&isOpen(i),lock=!!PARA[i]&&!isOpen(i);h+=`<a href="${on?"#/p/"+i:"#"}" class="${on?"":"off"}"><span class="num">§${i}</span><span>${esc(TITLES[i-1])}</span>${on?`<span class="chips">${chipHtml(dm[i]||{})}</span>`:lock?"<small class='mut'>🔒 мұғалім ашады</small>":on?"":"<small class='mut'>жақында</small>"}</a>`}
     h+="</div>"});
@@ -123,11 +124,14 @@ function summary(n,P,b){b.innerHTML=`<h2>📖 Конспект</h2>`+P.summary.m
 let _u=null;
 function stopAudio(){try{speechSynthesis.cancel()}catch(e){}}
 function audio(n,P,b){
-  b.innerHTML=`<h2>🎧 Аудио</h2><div class="card"><audio id="au" controls style="width:100%" src="audio/p${n}.mp3"></audio>
-  <p class="mut" id="am">Дайын аудио файл болса, жоғарыда ойнайды. Болмаса төмендегі дауыстап оқу түймесін бас.</p>
-  <button class="btn" id="pl">▶️ Дауыстап оқу</button><button class="btn alt" id="st" style="margin-top:8px">⏹ Тоқтату</button></div>
+  b.innerHTML=`<h2>🎧 Аудио</h2><div class="card"><audio id="au" controls preload="none" style="width:100%" src="audio/p${n}.mp3"></audio>
+  <div style="display:flex;gap:8px;align-items:center;margin-top:8px"><span class="mut">Жылдамдық:</span><select id="sp" style="width:auto"><option value="0.85">0,85×</option><option value="1" selected>1×</option><option value="1.15">1,15×</option><option value="1.3">1,3×</option></select></div>
+  <p class="mut" id="am">Жасанды интеллект дауысымен оқылған аудио. Ойнату түймесін бас.</p>
+  <div id="tf" style="display:none"><button class="btn alt" id="pl">▶️ Құрылғы дауысымен оқу (резервтік)</button><button class="btn alt" id="st" style="margin-top:8px">⏹ Тоқтату</button></div></div>
   <div class="card mut">${esc(P.audio)}</div>`;
-  $("#au").onerror=()=>$("#au").style.display="none";
+  const au=$("#au");
+  au.onerror=()=>{au.style.display="none";$("#sp").parentElement.style.display="none";$("#am").textContent="Бұл тақырыптың аудио файлы әзірге жоқ. Құрылғы дауысымен оқуға болады.";$("#tf").style.display=""};
+  $("#sp").onchange=e=>{au.playbackRate=+e.target.value};au.onplay=()=>{au.playbackRate=+$("#sp").value};
   $("#pl").onclick=()=>{if(!window.speechSynthesis)return alert("Бұл құрылғыда дауыстап оқу жоқ. Мәтінді өзің оқы.");stopAudio();
     const u=new SpeechSynthesisUtterance(P.audio);const v=speechSynthesis.getVoices();
     u.voice=v.find(x=>/^kk/i.test(x.lang))||v.find(x=>/^ru/i.test(x.lang))||null;u.lang=u.voice?u.voice.lang:"kk-KZ";u.rate=.92;speechSynthesis.speak(u)};
