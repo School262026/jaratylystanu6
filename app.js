@@ -13,7 +13,7 @@ const isOpen=n=>{const u=ls.get("jt_user",null);return !!(u&&u.preview)||OPEN.ha
 let OPEN=new Set(ls.get("jt_open",Array.from({length:20},(_,i)=>i+1)));
 async function loadOpen(){try{const r=await api({action:"config"});if(r.ok){const n=new Set(r.open);const ch=n.size!==OPEN.size||[...n].some(x=>!OPEN.has(x));OPEN=n;ls.set("jt_open",r.open);if(ch&&/^(#\/?|#\/p\/\d+)?$/.test(location.hash))route()}}catch(e){}}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-const TYPES={kviz:"Квиз-тест",test:"Тест",nis:"НИШ-тест",quiz:"Викторина",game:"Ойын",ws:"Жұмыс парағы"};
+const TYPES={map:"Контурлы карта",kviz:"Квиз-тест",test:"Тест",nis:"НИШ-тест",quiz:"Викторина",game:"Ойын",ws:"Жұмыс парағы"};
 
 /* ---------- сақтау және синхрондау ---------- */
 async function api(body){
@@ -28,7 +28,7 @@ async function submit(rec){
   if(u.preview){saveLocal(rec);return true}
   try{const r=await api({action:"submit",record:rec,name:u.name,cls:u.cls,token:u.token});
     if(r.err==="auth"){authLost();return false}
-    if(r.err==="closed"){alert("Бұл тақырып әзірге жабық. Мұғалім ашқанда тапсырасың.");return false}
+    if(r.err==="closed"){if(rec.type!=="map")alert("Бұл тақырып әзірге жабық. Мұғалім ашқанда тапсырасың.");return false}
     if(!r.ok)return false;rec.synced=true;saveLocal(rec);return true}catch(e){return false}
 }
 function authLost(){ls.set("jt_user",null);alert("Қайта кіру керек.");route()}
@@ -51,6 +51,7 @@ function route(){
   if(!u)return login();
   if(h[0]==="p"){const n=+h[1];if(!isOpen(n)){alert("Бұл тақырып әзірге жабық. Мұғалім ашады.");location.hash="#/";return}return h[2]?topicPage(n,h[2]):topic(n)}
   if(h[0]==="me")return me();
+  if(h[0]==="maps")return mapsPage(h.map(x=>decodeURIComponent(x)));
   home();
 }
 const ERR={roster:"Бұл сыныптың тізімінде мұндай оқушы жоқ. Аты-жөніңді тізімдегідей жаз (мысалы: Әбдімарат Алуа).",code:"Сынып коды қате. Мұғалімнен сұра.",name:"Аты-жөніңді толық жаз.",pass:"Құпиясөз қате (кемінде 4 таңба керек).",exists:"Бұл оқушы тіркелген. Құпиясөзбен кір.",locked:"Тым көп қате әрекет. 10 минуттан кейін қайтала."};
@@ -85,7 +86,7 @@ function home(){
   const res=ls.get("jt_res",[]).filter(x=>x.name===user().name);
   const done=new Set(res.filter(x=>x.type==="test").map(x=>x.para));
   let h=`<h1>Жаратылыстану · 6-сынып</h1><p class="mut">Атамұра оқулығы бойынша. Параграфты таңда.</p>
-  <div class="grid"><a class="tile" href="#/me"><span>📊</span>Менің нәтижем</a><a class="tile" href="#/teacher"><span>🔐</span>Мұғалім</a></div>`;
+  <div class="grid"><a class="tile" href="#/maps"><span>🗺️</span>Контурлы карта</a><a class="tile" href="#/me"><span>📊</span>Менің нәтижем</a><a class="tile" href="#/teacher"><span>🔐</span>Мұғалім</a></div>`;
   SECTIONS.forEach(([t,[a,b]])=>{h+=`<h2>${esc(t)}</h2><div class="card plist">`;
     for(let i=a;i<=b;i++){const on=!!PARA[i]&&isOpen(i),lock=!!PARA[i]&&!isOpen(i);h+=`<a href="${on?"#/p/"+i:"#"}" class="${on?"":"off"}"><span class="num">§${i}</span><span>${esc(TITLES[i-1])}</span>${done.has(i)?"✅":lock?"<small class='mut'>🔒 мұғалім ашады</small>":on?"":"<small class='mut'>жақында</small>"}</a>`}
     h+="</div>"});
@@ -235,7 +236,7 @@ async function me(){
   app.innerHTML=`<a href="#/">← Басты бет</a><h1>📊 Менің нәтижем</h1>`+
   (avg!==null?`<div class="card"><div class="big">${avg}%</div><p style="text-align:center">Орташа үлгерім · баға <b>${grade(avg)}</b> · ${level(avg)}</p></div>`:"")+
   `<div class="card"><table><tr><th>Күні</th><th>Түрі</th><th>§</th><th>Нәтиже</th></tr>`+
-  a.map(x=>`<tr><td>${new Date(x.ts).toLocaleDateString("kk-KZ")}</td><td>${TYPES[x.type]||x.type}</td><td>${x.para}</td><td>${x.type==="ws"?(x.grade?`<b>${x.grade}</b> ${esc(x.comment||"")}`:"⏳ тексерілуде"):x.pct+"% · <b>"+x.grade+"</b>"}</td></tr>`).join("")+`</table></div>`;
+  a.map(x=>`<tr><td>${new Date(x.ts).toLocaleDateString("kk-KZ")}</td><td>${TYPES[x.type]||x.type}</td><td>${x.para||"—"}</td><td>${x.type==="ws"?(x.grade?`<b>${x.grade}</b> ${esc(x.comment||"")}`:"⏳ тексерілуде"):x.pct+"% · <b>"+x.grade+"</b>"}</td></tr>`).join("")+`</table></div>`;
 }
 
 /* ---------- мұғалім ---------- */

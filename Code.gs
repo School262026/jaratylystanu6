@@ -64,7 +64,7 @@ function doPost(e){
       clearFail_(key);return out_({ok:true,name:u.name,cls,token:tok_(key,u.hash)})}
     if(a==="submit"){const u=auth_(b);if(!u)return out_({ok:false,err:"auth"});
       const r=b.record;if(!r||!r.id)return out_({ok:false});
-      if(cfg_().open.indexOf(Number(r.para))<0)return out_({ok:false,err:"closed"});
+      if(r.type!=="map"&&cfg_().open.indexOf(Number(r.para))<0)return out_({ok:false,err:"closed"});
       r.name=u.name;r.cls=u.cls;
       const t=sh_(),ids=t.getRange(2,1,Math.max(t.getLastRow()-1,1),1).getValues().flat();
       const row=HEAD.map(h=>h==="ans"?(r.ans?JSON.stringify(r.ans):""):(r[h]===undefined||r[h]===null?"":r[h]));
