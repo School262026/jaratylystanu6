@@ -9,7 +9,7 @@ const grade=p=>p>=85?5:p>=70?4:p>=40?3:2;
 const level=p=>p>=85?"Жоғары деңгей":p>=70?"Орта-жоғары деңгей":p>=40?"Орта деңгей":"Қайталау қажет";
 const user=()=>ls.get("jt_user",null);
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-const TYPES={test:"Тест",nis:"НИШ-тест",quiz:"Викторина",game:"Ойын",ws:"Жұмыс парағы"};
+const TYPES={kviz:"Квиз-тест",test:"Тест",nis:"НИШ-тест",quiz:"Викторина",game:"Ойын",ws:"Жұмыс парағы"};
 
 /* ---------- сақтау және синхрондау ---------- */
 async function api(body){
@@ -35,6 +35,7 @@ function route(){
   const h=location.hash.slice(2).split("/"),u=user();
   $("#who").textContent=u?u.name+" · "+u.cls:"";
   window.scrollTo(0,0);
+  const nv=$("#nav");if(nv)nv.style.display=(u||h[0]==="teacher")&&h[0]!==""?"flex":"none";
   if(h[0]==="teacher")return teacher();
   if(!u)return login();
   if(h[0]==="p"){const n=+h[1];return h[2]?topicPage(n,h[2]):topic(n)}
@@ -58,14 +59,14 @@ function home(){
   app.innerHTML=h;
 }
 function topic(n){
-  const t=[["summary","📖","Конспект"],["audio","🎧","Аудио"],["terms","🃏","Терминдер"],["quiz","❓","Викторина"],["test","📝","Тест"],["nis","🏆","НИШ-тест"],["game","🎮","Ойын"],["ws","✍️","Жұмыс парағы"],["hw","🏠","Үй тапсырмасы"]];
+  const t=[["summary","📖","Конспект"],["audio","🎧","Аудио"],["terms","🃏","Терминдер"],["kviz","⚡","Квиз-тест"],["quiz","❓","Викторина"],["test","📝","Тест"],["nis","🏆","НИШ-тест"],["game","🎮","Ойын"],["ws","✍️","Жұмыс парағы"],["hw","🏠","Үй тапсырмасы"]];
   app.innerHTML=`<a href="#/">← Барлық параграф</a><h1>§${n}. ${esc(TITLES[n-1])}</h1>
   <div class="grid">${t.map(x=>`<a class="tile" href="#/p/${n}/${x[0]}"><span>${x[1]}</span>${x[2]}</a>`).join("")}</div>`;
 }
 function topicPage(n,k){
   const P=PARA[n];if(!P)return home();
   const back=`<a href="#/p/${n}">← §${n}</a>`;
-  const fn={summary,audio,terms,quiz:()=>runChoice(n,"quiz"),test:()=>runChoice(n,"test"),nis:()=>runChoice(n,"nis"),game,ws,hw}[k];
+  const fn={summary,audio,terms,kviz:()=>runChoice(n,"kviz"),quiz:()=>runChoice(n,"quiz"),test:()=>runChoice(n,"test"),nis:()=>runChoice(n,"nis"),game:gameHub,match:game,rush,memory,ws,hw}[k];
   app.innerHTML=back+`<h1>§${n}. ${esc(TITLES[n-1])}</h1><div id="box"></div>`;
   fn&&fn(n,P,$("#box"));
 }
@@ -100,16 +101,20 @@ function hw(n,P,b){b.innerHTML=`<h2>🏠 Үй тапсырмасы</h2><div clas
 /* ---------- тест / викторина / НИШ ---------- */
 function runChoice(n,mode){
   const P=PARA[n],b=box();
-  let items=mode==="quiz"
+  const termQ=()=>P.terms.map((t,i)=>({q:"«"+t[0]+"» дегеніміз не?",why:t[0]+" — "+t[1],o:shuffle([{t:t[1],c:true}].concat(shuffle(P.terms.filter((_,j)=>j!==i)).slice(0,3).map(x=>({t:x[1],c:false}))))}));
+  let items=mode==="kviz"
+    ?shuffle(P.test.map(q=>({q:q.q,why:q.why,o:shuffle(q.o.map((t,i)=>({t,c:i===q.a})))})).concat(termQ())).slice(0,10)
+    :mode==="quiz"
     ?shuffle(P.quiz).map(q=>({q:q.q,o:[{t:"Дұрыс",c:q.a},{t:"Бұрыс",c:!q.a}],why:q.why}))
     :shuffle(P.test).map(q=>({q:q.q,why:q.why,o:shuffle(q.o.map((t,i)=>({t,c:i===q.a})))}));
-  const nis=mode==="nis",feedback=!nis;let i=0,score=0,log=[],left=items.length*90,t0=Date.now();
+  const nis=mode==="nis",kviz=mode==="kviz",feedback=!nis;let i=0,score=0,log=[],left=items.length*90,t0=Date.now(),ql=20,pts=0,streak=0;
   if(nis){window._tm=setInterval(()=>{left--;const e=$("#tm");if(e)e.textContent="⏱ "+Math.floor(left/60)+":"+String(left%60).padStart(2,"0");if(left<=0){clearInterval(window._tm);finish()}},1000)}
-  const draw=()=>{const q=items[i];b.innerHTML=(nis?`<div class="timer" id="tm">⏱</div>`:"")+`<div class="bar"><i style="width:${i/items.length*100}%"></i></div>
+  const draw=()=>{const q=items[i];b.innerHTML=(nis?`<div class="timer" id="tm">⏱</div>`:kviz?`<div class="timer" id="tm">⏱ 20 · ⚡ ${pts}</div>`:"")+`<div class="bar"><i style="width:${i/items.length*100}%"></i></div>
   <p class="mut">${i+1} / ${items.length}</p><div class="card"><b>${esc(q.q)}</b></div>`+
   q.o.map((o,k)=>`<button class="opt" data-k="${k}">${esc(o.t)}</button>`).join("")+`<div id="fb"></div>`;
-    b.querySelectorAll(".opt").forEach(el=>el.onclick=()=>pick(+el.dataset.k))};
-  const pick=k=>{const q=items[i],ok=q.o[k].c;if(ok)score++;log.push({q:q.q,ans:q.o[k].t,ok,right:q.o.find(o=>o.c).t,why:q.why});
+    b.querySelectorAll(".opt").forEach(el=>el.onclick=()=>pick(+el.dataset.k));
+    if(kviz){clearInterval(window._tm);ql=20;window._tm=setInterval(()=>{ql--;const e=$("#tm");if(e)e.textContent="⏱ "+ql+" · ⚡ "+pts;if(ql<=0)pick(-1)},1000)}};
+  const pick=k=>{if(kviz)clearInterval(window._tm);const q=items[i],ok=k>=0&&q.o[k].c;if(ok){score++;if(kviz){streak++;pts+=500+ql*25+Math.min(streak-1,4)*50}}else streak=0;log.push({q:q.q,ans:k>=0?q.o[k].t:"Уақыт бітті",ok,right:q.o.find(o=>o.c).t,why:q.why});
     if(feedback){b.querySelectorAll(".opt").forEach((el,j)=>{el.disabled=true;if(q.o[j].c)el.classList.add("ok");else if(j===k)el.classList.add("no")});
       $("#fb").innerHTML=`<div class="card">${ok?"✅ Дұрыс!":"❌ Қате."} ${esc(q.why||"")}</div><button class="btn" id="nx">Келесі →</button>`;$("#nx").onclick=next}
     else next()};
@@ -119,15 +124,47 @@ function runChoice(n,mode){
     const dur=Math.round((Date.now()-t0)/1000);
     const rec={id:uid(),name:user().name,cls:user().cls,type:mode,para:n,score,max,pct,grade:g,dur,ts:Date.now(),status:"auto"};
     const ok=await submit(rec);
-    b.innerHTML=`<div class="card"><div class="big">${pct}%</div><p style="text-align:center"><b>Баға: ${g}</b> · ${level(pct)}<br>${score} / ${max} дұрыс${nis?" · "+dur+" сек":""}</p></div>
+    b.innerHTML=`<div class="card"><div class="big">${pct}%</div><p style="text-align:center"><b>Баға: ${g}</b> · ${level(pct)}<br>${score} / ${max} дұрыс${nis?" · "+dur+" сек":""}${kviz?" · ⚡ "+pts+" ұпай":""}</p></div>
     <p class="mut">${ok?"✅ Нәтиже мұғалімге жіберілді.":"⚠️ Нәтиже осы телефонда сақталды"+(API?", байланыс қалпына келгенде қайта жіберіледі":" (мұғалімге жіберу әлі қосылмаған)")+"."}</p>
     <h2>Қателер талдауы</h2>`+(log.filter(x=>!x.ok).map(x=>`<div class="card">❌ ${esc(x.q)}<br><span class="mut">Сенің жауабың: ${esc(x.ans)}</span><br>✅ <b>${esc(x.right)}</b><br><span class="mut">${esc(x.why||"")}</span></div>`).join("")||"<div class='card'>Қате жоқ! 🎉</div>")+
     `<button class="btn" onclick="location.reload()">🔁 Қайта тапсыру</button><a class="btn alt" style="margin-top:8px" href="#/p/${n}">← Тақырыпқа</a>`;
   }
-  b.innerHTML=`<h2>${mode==="quiz"?"❓ Викторина":nis?"🏆 НИШ-тест":"📝 Тест"}</h2><div class="card">${nis?"Уақыт шектеулі (сұрақ басына 90 сек), дұрыс жауап соңында көрсетіледі.":"Әр жауаптан кейін түсіндірме шығады."}</div><button class="btn" id="st">Бастау</button>`;
+  b.innerHTML=`<h2>${kviz?"⚡ Квиз-тест":mode==="quiz"?"❓ Викторина":nis?"🏆 НИШ-тест":"📝 Тест"}</h2><div class="card">${kviz?"Жылдам квиз: әр сұраққа 20 секунд. Тез әрі дұрыс жауап берсең, ұпай көп. Қатарынан дұрыс жауапқа бонус беріледі.":nis?"Уақыт шектеулі (сұрақ басына 90 сек), дұрыс жауап соңында көрсетіледі.":"Әр жауаптан кейін түсіндірме шығады."}</div><button class="btn" id="st">Бастау</button>`;
   $("#st").onclick=()=>{t0=Date.now();draw()};
 }
 
+/* ---------- ойындар бөлімі ---------- */
+function gameHub(n,P,b){
+  const g=[["kviz","⚡","Квиз-тест","Kahoot сияқты: 20 сек, жылдамдыққа ұпай"],["rush","🔥","Жылдам Д/Б","3 өмір, әр сұраққа 6 сек"],["memory","🧠","Жад карталары","Ұғым мен анықтаманы тап"],["match","🔗","Жұптастыр","Сол мен оң жақты қос"]];
+  b.innerHTML=`<h2>🎮 Ойындар</h2>`+g.map(x=>`<a class="card" style="display:flex;gap:12px;align-items:center;text-decoration:none;color:inherit" href="#/p/${n}/${x[0]}"><span style="font-size:30px">${x[1]}</span><span><b>${x[2]}</b><br><span class="mut">${x[3]}</span></span></a>`).join("");
+}
+async function gameEnd(n,b,score,max,extra){
+  const pct=max?Math.round(score/max*100):0,rec={id:uid(),name:user().name,cls:user().cls,type:"game",para:n,score,max,pct,grade:grade(pct),ts:Date.now(),status:"auto"};
+  await submit(rec);
+  b.innerHTML=`<div class="card"><div class="big">🎉 ${pct}%</div><p style="text-align:center">${extra||""} Баға: <b>${rec.grade}</b></p></div><button class="btn" onclick="location.reload()">🔁 Қайта ойнау</button><a class="btn alt" style="margin-top:8px" href="#/p/${n}/game">🎮 Басқа ойын</a>`;
+}
+function rush(n,P,b){
+  const Q=shuffle(P.quiz);let i=0,ok=0,lives=3,t=6;
+  const stop=()=>clearInterval(window._tm);
+  const end=()=>{stop();gameEnd(n,b,ok,Q.length,"Дұрыс: "+ok+"/"+Q.length+".")};
+  const ans=v=>{stop();const q=Q[i],r=v===q.a;if(r)ok++;else lives--;
+    b.querySelectorAll(".opt").forEach(e=>e.disabled=true);
+    $("#fb").innerHTML=`<div class="card">${v===null?"⏱ Уақыт бітті. ":r?"✅ Дұрыс! ":"❌ Қате. "}${esc(q.why||"")}</div><button class="btn" id="nx">Келесі →</button>`;
+    $("#nx").onclick=()=>{i++;if(lives<=0||i>=Q.length)end();else draw()}};
+  const draw=()=>{t=6;const q=Q[i];b.innerHTML=`<div class="timer" id="tm">⏱ 6 · ${"❤️".repeat(lives)}</div><p class="mut">${i+1} / ${Q.length}</p><div class="card"><b>${esc(q.q)}</b></div><button class="opt" data-v="1">✅ Дұрыс</button><button class="opt" data-v="0">❌ Бұрыс</button><div id="fb"></div>`;
+    b.querySelectorAll(".opt").forEach(e=>e.onclick=()=>ans(e.dataset.v==="1"));
+    stop();window._tm=setInterval(()=>{t--;const e=$("#tm");if(e)e.textContent="⏱ "+t+" · "+"❤️".repeat(lives);if(t<=0)ans(null)},1000)};
+  b.innerHTML=`<h2>🔥 Жылдам Дұрыс/Бұрыс</h2><div class="card">Әр сұраққа 6 секунд. 3 өмір: қате жауап не уақыт бітсе, өмір азаяды.</div><button class="btn" id="st">Бастау</button>`;
+  $("#st").onclick=draw;
+}
+function memory(n,P,b){
+  const pairs=P.match;let cards=shuffle(pairs.flatMap((p,i)=>[{t:p[0],i,k:"a"},{t:p[1],i,k:"b"}])),open=[],done=new Set(),moves=0,lock=false;
+  const draw=()=>{b.innerHTML=`<h2>🧠 Жад карталары</h2><p class="mut">Ұғым мен оның жұбын тап. Қадам: ${moves}</p><div class="grid">`+cards.map((c,j)=>`<button class="mt ${done.has(j)?"done":""} ${open.includes(j)?"sel":""}" data-j="${j}" style="min-height:64px">${done.has(j)||open.includes(j)?esc(c.t):"❓"}</button>`).join("")+`</div>`;
+    b.querySelectorAll(".mt").forEach(e=>e.onclick=()=>{const j=+e.dataset.j;if(lock||open.includes(j)||done.has(j))return;open.push(j);
+      if(open.length===2){moves++;const[a,c]=open;if(cards[a].i===cards[c].i&&cards[a].k!==cards[c].k){done.add(a);done.add(c);open=[];draw();if(done.size===cards.length)setTimeout(()=>gameEnd(n,b,pairs.length,Math.max(pairs.length,moves-1),"Қадам: "+moves+"."),600)}
+        else{lock=true;draw();setTimeout(()=>{open=[];lock=false;draw()},900)}}else draw()})};
+  draw();
+}
 /* ---------- ойын: жұптастыру ---------- */
 function game(n,P,b){
   const pairs=P.match;let L=shuffle(pairs.map((p,i)=>[p[0],i])),R=shuffle(pairs.map((p,i)=>[p[1],i]));

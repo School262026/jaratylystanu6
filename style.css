@@ -25,3 +25,6 @@ textarea{min-height:90px}
 table{width:100%;border-collapse:collapse;font-size:14px}td,th{border-bottom:1px solid var(--line);padding:6px;text-align:left}
 .tag{display:inline-block;padding:2px 8px;border-radius:8px;font-size:12px;background:var(--pri2);color:var(--pri)}
 .timer{position:sticky;top:48px;background:var(--card);padding:6px;text-align:center;font-weight:700;border-bottom:1px solid var(--line)}
+#nav{display:none;position:fixed;left:0;right:0;bottom:0;z-index:6;gap:8px;padding:8px 12px;background:var(--card);border-top:1px solid var(--line)}
+#nav a{flex:1;text-align:center;padding:10px;border-radius:10px;background:var(--pri2);color:var(--pri);font-weight:700;text-decoration:none}
+main{padding-bottom:76px}
