@@ -9,6 +9,7 @@ const grade=p=>p>=85?5:p>=70?4:p>=40?3:2;
 const level=p=>p>=85?"Жоғары деңгей":p>=70?"Орта-жоғары деңгей":p>=40?"Орта деңгей":"Қайталау қажет";
 const user=()=>{const u=ls.get("jt_user",null);return u&&u.token?u:null};
 /* ашық тақырыптар (мұғалім басқарады) */
+const isOpen=n=>{const u=ls.get("jt_user",null);return !!(u&&u.preview)||OPEN.has(n)};
 let OPEN=new Set(ls.get("jt_open",Array.from({length:20},(_,i)=>i+1)));
 async function loadOpen(){try{const r=await api({action:"config"});if(r.ok){const n=new Set(r.open);const ch=n.size!==OPEN.size||[...n].some(x=>!OPEN.has(x));OPEN=n;ls.set("jt_open",r.open);if(ch&&/^(#\/?|#\/p\/\d+)?$/.test(location.hash))route()}}catch(e){}}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -24,6 +25,7 @@ function saveLocal(rec){const a=ls.get("jt_res",[]);const i=a.findIndex(x=>x.id=
 async function submit(rec){
   saveLocal(rec);
   const u=user();
+  if(u.preview){saveLocal(rec);return true}
   try{const r=await api({action:"submit",record:rec,name:u.name,cls:u.cls,token:u.token});
     if(r.err==="auth"){authLost();return false}
     if(r.err==="closed"){alert("Бұл тақырып әзірге жабық. Мұғалім ашқанда тапсырасың.");return false}
@@ -32,6 +34,7 @@ async function submit(rec){
 function authLost(){ls.set("jt_user",null);alert("Қайта кіру керек.");route()}
 async function mine(){
   const u=user();let a=ls.get("jt_res",[]);
+  if(u.preview)return a.filter(x=>x.name===u.name);
   try{const r=await api({action:"mine",name:u.name,cls:u.cls,token:u.token});if(r.err==="auth"){authLost();return[]}if(r.ok){const m={};a.forEach(x=>m[x.id]=x);r.rows.forEach(x=>m[x.id]=x);a=Object.values(m);ls.set("jt_res",a)}}catch(e){}
   return a.filter(x=>x.name===u.name&&x.cls===u.cls);
 }
@@ -46,7 +49,7 @@ function route(){
   const nv=$("#nav");if(nv)nv.style.display=(u||h[0]==="teacher")&&h[0]!==""?"flex":"none";
   if(h[0]==="teacher")return teacher();
   if(!u)return login();
-  if(h[0]==="p"){const n=+h[1];if(!OPEN.has(n)){alert("Бұл тақырып әзірге жабық. Мұғалім ашады.");location.hash="#/";return}return h[2]?topicPage(n,h[2]):topic(n)}
+  if(h[0]==="p"){const n=+h[1];if(!isOpen(n)){alert("Бұл тақырып әзірге жабық. Мұғалім ашады.");location.hash="#/";return}return h[2]?topicPage(n,h[2]):topic(n)}
   if(h[0]==="me")return me();
   home();
 }
@@ -84,7 +87,7 @@ function home(){
   let h=`<h1>Жаратылыстану · 6-сынып</h1><p class="mut">Атамұра оқулығы бойынша. Параграфты таңда.</p>
   <div class="grid"><a class="tile" href="#/me"><span>📊</span>Менің нәтижем</a><a class="tile" href="#/teacher"><span>🔐</span>Мұғалім</a></div>`;
   SECTIONS.forEach(([t,[a,b]])=>{h+=`<h2>${esc(t)}</h2><div class="card plist">`;
-    for(let i=a;i<=b;i++){const on=!!PARA[i]&&OPEN.has(i),lock=!!PARA[i]&&!OPEN.has(i);h+=`<a href="${on?"#/p/"+i:"#"}" class="${on?"":"off"}"><span class="num">§${i}</span><span>${esc(TITLES[i-1])}</span>${done.has(i)?"✅":lock?"<small class='mut'>🔒 мұғалім ашады</small>":on?"":"<small class='mut'>жақында</small>"}</a>`}
+    for(let i=a;i<=b;i++){const on=!!PARA[i]&&isOpen(i),lock=!!PARA[i]&&!isOpen(i);h+=`<a href="${on?"#/p/"+i:"#"}" class="${on?"":"off"}"><span class="num">§${i}</span><span>${esc(TITLES[i-1])}</span>${done.has(i)?"✅":lock?"<small class='mut'>🔒 мұғалім ашады</small>":on?"":"<small class='mut'>жақында</small>"}</a>`}
     h+="</div>"});
   h+=`<a class="btn alt" href="#" id="lo" style="margin-top:14px">🚪 Шығу</a>`;
   app.innerHTML=h;$("#lo").onclick=e=>{e.preventDefault();logout()};
@@ -254,7 +257,7 @@ function teacher(){
 function renderTeacher(rows,tc){
   const by={};rows.filter(x=>x.pct!=null).forEach(x=>{const k=x.name+"|"+x.cls;(by[k]=by[k]||[]).push(x.pct)});
   const pend=rows.filter(x=>x.type==="ws"&&!x.grade).sort((a,b)=>b.ts-a.ts),all=rows.sort((a,b)=>b.ts-a.ts);
-  app.innerHTML=`<a href="#/">← Басты бет</a> · <a href="#" id="out">Шығу</a><h1>🔐 Мұғалім панелі</h1>
+  app.innerHTML=`<a href="#/">← Басты бет</a> · <a href="#" id="out">Шығу</a><h1>🔐 Мұғалім панелі</h1><button class="btn" id="pv">👀 Оқушы ретінде көру (тест-оқушы)</button><p class="mut">Барлық 60 тақырып ашық, нәтижелер сақталмайды және оқушыларға көрінбейді.</p>
   <h2>Оқушылар үлгерімі</h2><div class="card"><table><tr><th>Оқушы</th><th>Сынып</th><th>Тест саны</th><th>Орташа</th><th>Баға</th></tr>`+
   Object.entries(by).map(([k,v])=>{const [n,c]=k.split("|"),avg=Math.round(v.reduce((a,b)=>a+b,0)/v.length);return `<tr><td>${esc(n)}</td><td>${esc(c)}</td><td>${v.length}</td><td>${avg}%</td><td><b>${grade(avg)}</b></td></tr>`}).join("")+`</table></div>
   <h2>Тексеруді күтетін жұмыс парақтары (${pend.length})</h2>`+
@@ -263,6 +266,7 @@ function renderTeacher(rows,tc){
     `<select data-g="${x.id}"><option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option></select><input data-c="${x.id}" placeholder="Пікір (міндетті емес)"><button class="btn" data-s="${x.id}">Бағаны қою</button></div>`).join("")||"<div class='card'>Жаңа жұмыс жоқ</div>")+
   (tc?teacherAdmin(tc):"")+`<button class="btn alt" id="csv" style="margin-top:12px">⬇️ Excel/CSV жүктеу</button>`;
   if(tc)bindAdmin(tc);
+  $("#pv").onclick=()=>{ls.set("jt_user",{name:"Мұғалім (тест)",cls:"—",token:"preview",preview:true});location.hash="#/";route()};
   $("#out").onclick=e=>{e.preventDefault();TP="";ls.set("jt_tp","");teacher()};
   app.querySelectorAll("[data-s]").forEach(bt=>bt.onclick=async()=>{const id=bt.dataset.s,g=+app.querySelector(`[data-g="${id}"]`).value,c=app.querySelector(`[data-c="${id}"]`).value;
     if(API){try{const r=await api({action:"grade",pass:TP,id,grade:g,comment:c});if(!r.ok)throw 0}catch(e){return alert("Қате: баға сақталмады")}}
