@@ -13,7 +13,7 @@ const isOpen=n=>{const u=ls.get("jt_user",null);return !!(u&&u.preview)||OPEN.ha
 let OPEN=new Set(ls.get("jt_open",Array.from({length:20},(_,i)=>i+1)));
 async function loadOpen(){try{const r=await api({action:"config"});if(r.ok){const n=new Set(r.open);const ch=n.size!==OPEN.size||[...n].some(x=>!OPEN.has(x));OPEN=n;ls.set("jt_open",r.open);if(r.qt){QTOPEN=r.qt;ls.set("jt_qt",r.qt)}if(r.links){LINKS=r.links;ls.set("jt_links",r.links)}if(typeof r.rating==="boolean"){RATING=r.rating;ls.set("jt_rating",r.rating)}if(ch&&/^(#\/?|#\/p\/\d+)?$/.test(location.hash))route()}}catch(e){}}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-const TYPES={qt:"Тоқсандық тест",pw:"Сарамандық жұмыс",hw:"Үй тапсырмасы (қайталау)",lab:"Лаборатория",map:"Контурлы карта",kviz:"Квиз-тест",test:"Тест",nis:"НИШ-тест",quiz:"Викторина",game:"Ойын",ws:"Жұмыс парағы"};
+const TYPES={read:"Оқып танысты",qt:"Тоқсандық тест",pw:"Сарамандық жұмыс",hw:"Үй тапсырмасы (қайталау)",lab:"Лаборатория",map:"Контурлы карта",kviz:"Квиз-тест",test:"Тест",nis:"НИШ-тест",quiz:"Викторина",game:"Ойын",ws:"Жұмыс парағы"};
 
 /* ---------- сақтау және синхрондау ---------- */
 async function api(body){
@@ -87,17 +87,19 @@ function passStep(code,name,cls,exists){
     catch(e){$("#er").textContent="Байланыс жоқ. Интернетті тексер."}};
 }
 function logout(){if(confirm("Шығасың ба?")){ls.set("jt_user",null);location.hash="#/";route()}}
-function home(){
+function home(rows0){
   loadOpen();
-  const res=ls.get("jt_res",[]).filter(x=>x.name===user().name);
-  const done=new Set(res.filter(x=>x.type==="test").map(x=>x.para));
-  let h=`<h1>Жаратылыстану · 6-сынып</h1><p class="mut">Атамұра оқулығы бойынша. Параграфты таңда.</p>${newBanner()}
+  const uu=user();
+  const rows=rows0||ls.get("jt_res",[]).filter(x=>x.name===uu.name&&String(x.cls)===String(uu.cls));
+  const dm=doneMap(rows);
+  if(!rows0&&!uu.preview)mine().then(r=>{if(r&&(location.hash==="#/"||location.hash===""||location.hash==="#"))home(r)});
+  let h=`<h1>Жаратылыстану · 6-сынып</h1><p class="mut">Атамұра оқулығы бойынша. Параграфты таңда.</p>${newBanner()}${uu.preview?"":statusBanner(dm)}
   <div class="grid"><a class="tile" href="#/maps"><span>🗺️</span>Контурлы карта</a><a class="tile" href="#/lab"><span>🧪</span>Лаборатория</a><a class="tile" href="#/qt"><span>📚</span>Тоқсандық тест</a><a class="tile" href="#/pw"><span>🔬</span>Сарамандық жұмыс</a><a class="tile" href="#/hw"><span>🏠</span>Үй тапсырмасы</a>${RATING&&!(user()&&user().preview)?`<a class="tile" href="#/rating"><span>🏆</span>Рейтинг</a>`:""}<a class="tile" href="#/me"><span>📊</span>Менің нәтижем</a><a class="tile" href="#/teacher"><span>🔐</span>Мұғалім</a></div>`;
   SECTIONS.forEach(([t,[a,b]])=>{h+=`<h2>${esc(t)}</h2><div class="card plist">`;
-    for(let i=a;i<=b;i++){const on=!!PARA[i]&&isOpen(i),lock=!!PARA[i]&&!isOpen(i);h+=`<a href="${on?"#/p/"+i:"#"}" class="${on?"":"off"}"><span class="num">§${i}</span><span>${esc(TITLES[i-1])}</span>${done.has(i)?"✅":lock?"<small class='mut'>🔒 мұғалім ашады</small>":on?"":"<small class='mut'>жақында</small>"}</a>`}
+    for(let i=a;i<=b;i++){const on=!!PARA[i]&&isOpen(i),lock=!!PARA[i]&&!isOpen(i);h+=`<a href="${on?"#/p/"+i:"#"}" class="${on?"":"off"}"><span class="num">§${i}</span><span>${esc(TITLES[i-1])}</span>${on?`<span class="chips">${chipHtml(dm[i]||{})}</span>`:lock?"<small class='mut'>🔒 мұғалім ашады</small>":on?"":"<small class='mut'>жақында</small>"}</a>`}
     h+="</div>"});
   h+=`<a class="btn alt" href="#" id="lo" style="margin-top:14px">🚪 Шығу</a>`;
-  app.innerHTML=h;$("#lo").onclick=e=>{e.preventDefault();logout()};const sn=$("#seen");if(sn)sn.onclick=e=>{e.preventDefault();markSeen();home()};
+  app.innerHTML=h;$("#lo").onclick=e=>{e.preventDefault();logout()};const sn=$("#seen");if(sn)sn.onclick=e=>{e.preventDefault();markSeen();home(rows0)};
 }
 function topic(n){
   const t=[["summary","📖","Конспект"],["audio","🎧","Аудио"],["terms","🃏","Терминдер"],["kviz","⚡","Квиз-тест"],["quiz","❓","Викторина"],["test","📝","Тест"],["nis","🏆","НИШ-тест"],["game","🎮","Ойын"],["ws","✍️","Жұмыс парағы"],["hw","🏠","Үй тапсырмасы"]].concat(PW[n]?[["pw","🔬","Сарамандық жұмыс"]]:[]).concat((LINKS[n]||[]).length?[["links","🎞️","Презентация / видео"]]:[]);
@@ -110,6 +112,7 @@ function topicPage(n,k){
   const back=`<a href="#/p/${n}">← §${n}</a>`;
   const fn={summary,audio,terms,kviz:()=>runChoice(n,"kviz"),quiz:()=>runChoice(n,"quiz"),test:()=>runChoice(n,"test"),nis:()=>runChoice(n,"nis"),game:gameHub,match:game,rush,memory,ws,hw,links:linksPage,pw:pwWork}[k];
   app.innerHTML=back+`<h1>§${n}. ${esc(TITLES[n-1])}</h1><div id="box"></div>`;
+  if(k==="summary"||k==="audio")markRead(n);
   fn&&fn(n,P,$("#box"));
 }
 const box=()=>$("#box");
@@ -238,7 +241,7 @@ function ws(n,P,b){
 /* ---------- менің нәтижем ---------- */
 async function me(){
   app.innerHTML=`<a href="#/">← Басты бет</a><h1>📊 Менің нәтижем</h1><p class="mut">Жүктелуде...</p>`;
-  const a=(await mine()).sort((x,y)=>y.ts-x.ts),au=a.filter(x=>x.pct!=null);
+  const a=(await mine()).filter(x=>x.type!=="read").sort((x,y)=>y.ts-x.ts),au=a.filter(x=>x.pct!=null);
   if(location.hash!=="#/me")return;
   const avg=au.length?Math.round(au.reduce((s,x)=>s+x.pct,0)/au.length):null;
   app.innerHTML=`<a href="#/">← Басты бет</a><h1>📊 Менің нәтижем</h1>`+analyticsHtml(a)+
@@ -273,7 +276,7 @@ function renderTeacher(rows,tc){
   (pend.map(x=>`<div class="card"><b>${esc(x.name)}</b> · ${esc(x.cls)} · §${x.para}${x.type==="pw"?" · 🔬 сарамандық жұмыс":""} <span class="tag">${new Date(x.ts).toLocaleString("kk-KZ")}</span>`+
     x.ans.map(a=>`<p><span class="mut">${esc(a.q)}</span><br><span style="white-space:pre-wrap">${esc(a.a)}</span></p>`).join("")+
     `<select data-g="${x.id}"><option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option></select><input data-c="${x.id}" placeholder="Пікір (міндетті емес)"><button class="btn" data-s="${x.id}">Бағаны қою</button></div>`).join("")||"<div class='card'>Жаңа жұмыс жоқ</div>")+
-  teacherAnalyticsHtml(rows)+(tc?teacherAdmin(tc):"")+`<button class="btn alt" id="csv" style="margin-top:12px">⬇️ Excel/CSV жүктеу</button>`;
+  teacherAnalyticsHtml(rows)+(tc?"<h2>📋 Орындау</h2>"+teacherCompletionHtml(rows,tc):"")+(tc?teacherAdmin(tc):"")+`<button class="btn alt" id="csv" style="margin-top:12px">⬇️ Excel/CSV жүктеу</button>`;
   if(tc)bindAdmin(tc);
   $("#pv").onclick=()=>{ls.set("jt_user",{name:"Мұғалім (тест)",cls:"—",token:"preview",preview:true});location.hash="#/";route()};
   $("#out").onclick=e=>{e.preventDefault();TP="";ls.set("jt_tp","");teacher()};

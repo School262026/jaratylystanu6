@@ -165,3 +165,42 @@ function qtPage(h){
     t+=`<div class="card"><b>${n}-тоқсан</b> ${o?"":"<small class='mut'>🔒 мұғалім ашады</small>"}<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">${vs.map(x=>`<a class="btn ${o?"":"alt"}" style="width:auto;padding:8px 16px;${o?"":"pointer-events:none;opacity:.5"}" href="#/qt/${n}/${x}">${x}-нұсқа (${QB.qt[n][x].length})</a>`).join("")}</div></div>`});
   app.innerHTML=t;
 }
+
+/* ---- Орындалу күйі: қызыл (орындалмаған) / жасыл (орындалған), ескерту және мадақтау ---- */
+function doneMap(rows){
+  const m={};
+  rows.forEach(x=>{if(!(x.para>0))return;const o=m[x.para]=m[x.para]||{read:false,test:false,ws:false};
+    if(x.type==="read")o.read=true;
+    if(x.type==="test"){o.test=true;o.read=true}
+    if(x.type==="ws")o.ws=true});
+  return m;
+}
+function markRead(n){
+  const u=user();if(!u||u.preview)return;const key="jt_rd_"+u.name+"|"+u.cls,a=ls.get(key,[]);if(a.includes(n))return;
+  a.push(n);ls.set(key,a);
+  submit({id:uid(),name:u.name,cls:u.cls,type:"read",para:n,ts:Date.now(),status:"auto"});
+}
+const chipHtml=(o)=>[["📖","read","Оқу"],["📝","test","Тест"],["✍️","ws","Жұмыс парағы"]].map(c=>`<i class="chip ${o[c[1]]?"ok":"no"}" title="${c[2]}">${c[0]}</i>`).join("");
+function statusBanner(dm){
+  const T=[...OPEN].filter(n=>PARA[n]).sort((a,b)=>a-b);if(!T.length)return"";
+  const miss={read:[],test:[],ws:[]};let done=0;
+  T.forEach(n=>{const o=dm[n]||{};["read","test","ws"].forEach(k=>{if(o[k])done++;else miss[k].push(n)})});
+  const total=T.length*3,pct=Math.round(done/total*100);
+  const est=pct>=90?5:pct>=70?4:pct>=50?3:2;
+  const ln=a=>a.map(n=>`<a href="#/p/${n}">§${n}</a>`).join(", ");
+  if(pct===100)return`<div class="card good"><b>🎉 Жарайсың!</b><br>Ашық тақырыптардың бәрін оқып, тест тапсырып, жұмыс парағын орындадың. Тоқсандық бағаң көтерілді! Осылай жалғастыр.<div class="bar" style="margin-top:8px"><i style="width:100%;background:#3cb371"></i></div></div>`;
+  return`<div class="card warn"><b>⚠️ Назар аудар!</b> Орындалмаған тапсырмалар бар (орындалуы: <b>${pct}%</b>).
+  ${miss.read.length?`<p>📖 <b>Оқып танысуға</b> (конспект/аудио): ${ln(miss.read)}</p>`:""}
+  ${miss.test.length?`<p>📝 <b>Тест тапсыруға</b>: ${ln(miss.test)}</p>`:""}
+  ${miss.ws.length?`<p>✍️ <b>Жұмыс парағын орындауға</b>: ${ln(miss.ws)}</p>`:""}
+  <p><b>Осы тапсырмаларды орындамасаң, тоқсандық бағаң төмендейді.</b> Қазіргі орындалуың бойынша болжамды баға: <b>${est}</b>.<br><span class="mut">90–100% → 5 · 70–89% → 4 · 50–69% → 3 · 50%-дан кем → 2</span></p>
+  <div class="bar" style="margin-top:6px"><i style="width:${pct}%;background:#e57373"></i></div>
+  <p class="mut" style="margin-top:6px">Қызыл белгі — орындалмаған, орындасаң жасылға айналады: 📖 оқу, 📝 тест, ✍️ жұмыс парағы.</p></div>`;
+}
+/* ---- Мұғалімге: тапсырма орындау (ашық тақырыптар бойынша) ---- */
+function teacherCompletionHtml(rows,tc){
+  const T=(tc&&tc.open?tc.open:[...OPEN]).filter(n=>PARA[n]);if(!T.length)return"";
+  const users=(tc&&tc.users)||[];if(!users.length)return"";
+  const list=users.map(u=>{const dm=doneMap(rows.filter(x=>x.name===u.name&&String(x.cls)===String(u.cls)));let d=0;T.forEach(n=>{const o=dm[n]||{};d+=(o.read?1:0)+(o.test?1:0)+(o.ws?1:0)});return{u,pct:Math.round(d/(T.length*3)*100)}}).sort((a,b)=>a.pct-b.pct);
+  return`<div class="card"><b>✅ Тапсырма орындау (${T.length} ашық тақырып бойынша: оқу + тест + жұмыс парағы)</b>${list.map(x=>barRow(x.u.name+" · "+x.u.cls,x.pct,x.pct>=90?"#3cb371":x.pct>=50?"#f1a62b":"#e57373")).join("")}<p class="mut">Қызыл — орындамағандар. Оқушыларға ескерту өздігінен шығады.</p></div>`;
+}

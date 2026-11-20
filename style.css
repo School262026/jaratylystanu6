@@ -28,3 +28,8 @@ table{width:100%;border-collapse:collapse;font-size:14px}td,th{border-bottom:1px
 #nav{display:none;position:fixed;left:0;right:0;bottom:0;z-index:6;gap:8px;padding:8px 12px;background:var(--card);border-top:1px solid var(--line)}
 #nav a{flex:1;text-align:center;padding:10px;border-radius:10px;background:var(--pri2);color:var(--pri);font-weight:700;text-decoration:none}
 main{padding-bottom:76px}
+.chips{margin-left:auto;white-space:nowrap}.chip{display:inline-block;padding:0 6px;border-radius:8px;font-size:12px;font-style:normal;margin-left:3px;border:1px solid}
+.chip.ok{background:rgba(60,179,113,.2);color:#17663a;border-color:#3cb371}.chip.no{background:rgba(229,115,115,.2);color:#b3261e;border-color:#e57373}
+@media(prefers-color-scheme:dark){.chip.ok{color:#7be0a8}.chip.no{color:#ff9e94}}
+.card.warn{border-color:#e57373;background:rgba(229,115,115,.12)}.card.good{border-color:#3cb371;background:rgba(60,179,113,.14)}
+.plist a{flex-wrap:wrap}
