@@ -159,6 +159,7 @@ function ws(n,P,b){
 async function me(){
   app.innerHTML=`<a href="#/">← Басты бет</a><h1>📊 Менің нәтижем</h1><p class="mut">Жүктелуде...</p>`;
   const a=(await mine()).sort((x,y)=>y.ts-x.ts),au=a.filter(x=>x.pct!=null);
+  if(location.hash!=="#/me")return;
   const avg=au.length?Math.round(au.reduce((s,x)=>s+x.pct,0)/au.length):null;
   app.innerHTML=`<a href="#/">← Басты бет</a><h1>📊 Менің нәтижем</h1>`+
   (avg!==null?`<div class="card"><div class="big">${avg}%</div><p style="text-align:center">Орташа үлгерім · баға <b>${grade(avg)}</b> · ${level(avg)}</p></div>`:"")+
@@ -176,6 +177,7 @@ function teacher(){
     let rows;
     if(API){try{const r=await api({action:"list",pass:TP});if(!r.ok)throw 0;rows=r.rows}catch(e){TP="";ls.set("jt_tp","");return alert("Құпиясөз қате немесе байланыс жоқ"),teacher()}}
     else{if(TP!=="teacher"){TP="";ls.set("jt_tp","");alert("Қате құпиясөз");return teacher()}rows=ls.get("jt_res",[])}
+    if(location.hash!=="#/teacher")return;
     renderTeacher(rows);
   })();
 }
