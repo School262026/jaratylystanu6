@@ -101,7 +101,8 @@ function home(){
 }
 function topic(n){
   const t=[["summary","📖","Конспект"],["audio","🎧","Аудио"],["terms","🃏","Терминдер"],["kviz","⚡","Квиз-тест"],["quiz","❓","Викторина"],["test","📝","Тест"],["nis","🏆","НИШ-тест"],["game","🎮","Ойын"],["ws","✍️","Жұмыс парағы"],["hw","🏠","Үй тапсырмасы"]].concat(PW[n]?[["pw","🔬","Сарамандық жұмыс"]]:[]).concat((LINKS[n]||[]).length?[["links","🎞️","Презентация / видео"]]:[]);
-  app.innerHTML=`<a href="#/">← Барлық параграф</a><h1>§${n}. ${esc(TITLES[n-1])}</h1>
+  const gl=(window.GOALS&&GOALS[n])?`<div class="card"><b>🎯 Оқу мақсаты</b>${GOALS[n].map(g=>`<br><span class="tag">${g[0]}</span> ${esc(g[1])}`).join("")}</div>`:"";
+  app.innerHTML=`<a href="#/">← Барлық параграф</a><h1>§${n}. ${esc(TITLES[n-1])}</h1>${gl}
   <div class="grid">${t.map(x=>`<a class="tile" href="#/p/${n}/${x[0]}"><span>${x[1]}</span>${x[2]}</a>`).join("")}</div>`;
 }
 function topicPage(n,k){
