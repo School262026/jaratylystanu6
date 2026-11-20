@@ -50,7 +50,7 @@ function route(){
   if(h[0]==="me")return me();
   home();
 }
-const ERR={code:"Сынып коды қате. Мұғалімнен сұра.",name:"Аты-жөніңді толық жаз.",pass:"Құпиясөз қате (кемінде 4 таңба керек).",exists:"Бұл оқушы тіркелген. Құпиясөзбен кір.",locked:"Тым көп қате әрекет. 10 минуттан кейін қайтала."};
+const ERR={roster:"Бұл сыныптың тізімінде мұндай оқушы жоқ. Аты-жөніңді тізімдегідей жаз (мысалы: Әбдімарат Алуа).",code:"Сынып коды қате. Мұғалімнен сұра.",name:"Аты-жөніңді толық жаз.",pass:"Құпиясөз қате (кемінде 4 таңба керек).",exists:"Бұл оқушы тіркелген. Құпиясөзбен кір.",locked:"Тым көп қате әрекет. 10 минуттан кейін қайтала."};
 function login(){
   app.innerHTML=`<h1>Сәлем! 👋</h1><div class="card"><p>Сыныбыңның кодын (мұғалім береді) және аты-жөніңді жаз.</p>
   <input id="cc" placeholder="Сынып коды" autocapitalize="characters" autocomplete="off"><input id="n" placeholder="Аты-жөні (мысалы: Айдос Нұрлан)" autocomplete="off">
@@ -58,7 +58,7 @@ function login(){
   $("#go").onclick=async()=>{const code=$("#cc").value.trim().toUpperCase(),name=$("#n").value.trim().replace(/\s+/g," ");
     if(!code||name.length<3)return $("#er").textContent="Кодты және аты-жөніңді жаз.";
     $("#er").textContent="Тексерілуде...";
-    try{const r=await api({action:"check",code,name});if(!r.ok)return $("#er").textContent=ERR[r.err]||"Қате";passStep(code,name,r.cls,r.exists)}
+    try{const r=await api({action:"check",code,name});if(!r.ok)return $("#er").textContent=ERR[r.err]||"Қате";passStep(code,r.name||name,r.cls,r.exists)}
     catch(e){$("#er").textContent="Байланыс жоқ. Интернетті тексер."}};
 }
 function passStep(code,name,cls,exists){
@@ -277,6 +277,8 @@ function teacherAdmin(tc){
   const op=new Set(tc.open);
   return `<h2>🔑 Сынып кодтары</h2><div class="card" id="cls">`+Object.entries(tc.classes).map(([k,v])=>`<div class="grid" style="margin:4px 0"><input data-ck="${esc(k)}" value="${esc(k)}" readonly><input data-cv="${esc(k)}" value="${esc(v)}"></div>`).join("")+
   `<div class="grid" style="margin-top:8px"><input id="nk" placeholder="Жаңа сынып (6Е)"><input id="nv" placeholder="Коды"></div><p class="mut">Кодты өзгертуге болады. Сыныбына сәйкес кодты оқушыларға бер.</p></div>
+  <h2>📋 Сынып тізімдері</h2><div class="card">`+Object.keys(tc.classes).map(k=>`<b>${esc(k)}</b> <span class="mut">(${(tc.roster[k]||[]).length} оқушы; бос болса, кез келген аты қабылданады)</span><textarea data-rs="${esc(k)}" rows="5" placeholder="Әр жолға бір оқушы: Тегі Аты">${esc((tc.roster[k]||[]).join("
+"))}</textarea>`).join("")+`<p class="mut">Оқушы тек осы тізімдегі аты-жөнімен тіркеле алады. Әріптердің кіші қателерін және аты мен тегінің ретін жүйе кешіреді.</p></div>
   <h2>🔓 Ашық тақырыптар (<span id="oc">${op.size}</span>/60)</h2><div class="card"><div style="display:flex;flex-wrap:wrap;gap:6px" id="og">`+
   Array.from({length:60},(_,i)=>`<button class="mt" data-o="${i+1}" style="width:54px;padding:8px 0;text-align:center;${op.has(i+1)?"background:var(--pri2);border-color:var(--pri)":""}">${i+1}</button>`).join("")+
   `</div><div class="grid" style="margin-top:10px"><input id="uN" type="number" min="0" max="60" placeholder="1…N ашу"><button class="btn alt" id="uB">1…N ашу</button></div>
@@ -291,7 +293,9 @@ function bindAdmin(tc){
   $("#uB").onclick=()=>{const n=+$("#uN").value;op.clear();for(let i=1;i<=n;i++)op.add(i);paint()};
   $("#svc").onclick=async()=>{const classes={};app.querySelectorAll("[data-ck]").forEach(k=>{const v=app.querySelector(`[data-cv="${k.dataset.ck}"]`).value.trim();if(v)classes[k.dataset.ck]=v});
     const nk=$("#nk").value.trim(),nv=$("#nv").value.trim();if(nk&&nv)classes[nk]=nv;
-    try{const r=await api({action:"setcfg",pass:TP,open:[...op],classes});if(!r.ok)throw 0;alert("Сақталды ✅");teacher()}catch(e){alert("Қате: сақталмады")}};
+    const roster={};app.querySelectorAll("[data-rs]").forEach(t=>{roster[t.dataset.rs]=t.value.split("
+").map(x=>x.trim()).filter(Boolean)});
+    try{const r=await api({action:"setcfg",pass:TP,open:[...op],classes,roster});if(!r.ok)throw 0;alert("Сақталды ✅");teacher()}catch(e){alert("Қате: сақталмады")}};
   app.querySelectorAll("[data-rp]").forEach(b=>b.onclick=async()=>{const u=tc.users[+b.dataset.rp];if(!confirm(u.name+" ("+u.cls+") құпиясөзін өшіру? Оқушы жаңадан құпиясөз жасайды."))return;
     try{const r=await api({action:"resetpw",pass:TP,name:u.name,cls:u.cls});if(!r.ok)throw 0;alert("Өшірілді");teacher()}catch(e){alert("Қате")}});
 }

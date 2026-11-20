@@ -16,11 +16,20 @@ function sha_(s){return hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.S
 function tok_(key,hash){return hex_(Utilities.computeHmacSha256Signature(key+"|"+hash,secret_()))}
 function norm_(s){return String(s||"").trim().replace(/\s+/g," ").toLowerCase()}
 function gen_(){const a="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";let s="";for(let i=0;i<5;i++)s+=a[Math.floor(Math.random()*a.length)];return s}
+const SEED={"6А":"Әбдімарат Алуа|Балтабек Нұрхат|Крикбай Абылай|Мағжанұлы Айсұлтан|Уалиханұлы Азиз|Шакирт Айғаным".split("|"),"6В":"Ахмадиева Аяулым|Бахыт Райян|Джакупова Аиша|Думанқызы Мариям|Жайлаубай Арслан|Жандарбек Бекарыс|Канкина Ханшайым|Қасым Кәусар|Мұрат Санжар|Мұхтар Мұхаммед Али|Мұхтар Мұхаммед Хани|Нурлыбек Райан|Нурманова Дана|Пайзулла Сұлтанғали|Рахымжанов Рамазан|Серәлі Сәния|Тулекенова Айлин|Тұрабай Ахмет|Тілекқабыл Рауан".split("|")};
 function cfg_(){
-  const p=P_().getProperty("CONFIG");if(p)return JSON.parse(p);
-  const c={open:Array.from({length:20},(_,i)=>i+1),classes:{}};
-  ["6А","6Ә","6Б","6В","6Г","6Д"].forEach(k=>c.classes[k]=gen_());
-  P_().setProperty("CONFIG",JSON.stringify(c));return c}
+  const p=P_().getProperty("CONFIG");let c=p?JSON.parse(p):null;
+  if(!c){c={open:Array.from({length:20},(_,i)=>i+1),classes:{}};
+    ["6А","6Ә","6Б","6В","6Г","6Д"].forEach(k=>c.classes[k]=gen_())}
+  if(!c.roster){c.roster=SEED;P_().setProperty("CONFIG",JSON.stringify(c))}
+  else if(!p)P_().setProperty("CONFIG",JSON.stringify(c));
+  return c}
+function fold_(s){const m={"ә":"а","ғ":"г","қ":"к","ң":"н","ө":"о","ұ":"у","ү":"у","һ":"х","і":"и","ы":"и","ё":"е","й":"и","ъ":"","ь":""};
+  return String(s||"").toLowerCase().replace(/[әғқңөұүһіыёйъь]/g,c=>m[c]).replace(/[^a-zа-я0-9 ]/g," ").trim().split(/\s+/).filter(Boolean).sort().join(" ")}
+/* тізім бойынша аты-жөнін тексеру: {ok,name} (тізім бос болса, жазғанын қабылдайды) */
+function who_(cls,name){const n=String(name||"").trim().replace(/\s+/g," "),list=(cfg_().roster||{})[cls]||[];
+  if(!list.length)return n.length>=3?{ok:true,name:n}:{ok:false};
+  const k=fold_(n),f=list.filter(x=>fold_(x)===k)[0];return f?{ok:true,name:f}:{ok:false}}
 function clsByCode_(code){const c=cfg_().classes,k=String(code||"").trim().toUpperCase();return Object.keys(c).filter(n=>String(c[n]).toUpperCase()===k)[0]||null}
 function users_(){const v=ush_().getDataRange().getValues();v.shift();return v}
 function findU_(key){const v=users_();for(let i=0;i<v.length;i++)if(v[i][0]===key)return {row:i+2,name:v[i][1],cls:v[i][2],salt:v[i][3],hash:v[i][4]};return null}
@@ -39,17 +48,18 @@ function doPost(e){
     const b=JSON.parse(e.postData.contents),a=b.action;
     if(a==="config")return out_({ok:true,open:cfg_().open});
     if(a==="check"){const cls=clsByCode_(b.code);if(!cls)return out_({ok:false,err:"code"});
-      const n=String(b.name||"").trim().replace(/\s+/g," ");if(n.length<3)return out_({ok:false,err:"name"});
-      return out_({ok:true,cls,exists:!!findU_(norm_(n)+"|"+cls)})}
+      const w=who_(cls,b.name);if(!w.ok)return out_({ok:false,err:"roster"});
+      return out_({ok:true,cls,name:w.name,exists:!!findU_(norm_(w.name)+"|"+cls)})}
     if(a==="register"){const cls=clsByCode_(b.code);if(!cls)return out_({ok:false,err:"code"});
-      const n=String(b.name||"").trim().replace(/\s+/g," "),pw=String(b.pass||"");
-      if(n.length<3)return out_({ok:false,err:"name"});if(pw.length<4)return out_({ok:false,err:"pass"});
+      const w=who_(cls,b.name),pw=String(b.pass||"");
+      if(!w.ok)return out_({ok:false,err:"roster"});if(pw.length<4)return out_({ok:false,err:"pass"});const n=w.name;
       const key=norm_(n)+"|"+cls;if(findU_(key))return out_({ok:false,err:"exists"});
       const salt=Utilities.getUuid(),hash=sha_(salt+pw);
       ush_().appendRow([key,n,cls,salt,hash,Date.now()]);
       return out_({ok:true,name:n,cls,token:tok_(key,hash)})}
     if(a==="login"){const cls=clsByCode_(b.code);if(!cls)return out_({ok:false,err:"code"});
-      const key=norm_(b.name)+"|"+cls;if(failed_(key)>=MAXFAIL)return out_({ok:false,err:"locked"});
+      const w=who_(cls,b.name);if(!w.ok)return out_({ok:false,err:"roster"});
+      const key=norm_(w.name)+"|"+cls;if(failed_(key)>=MAXFAIL)return out_({ok:false,err:"locked"});
       const u=findU_(key);if(!u||sha_(u.salt+String(b.pass||""))!==u.hash){addFail_(key);return out_({ok:false,err:"pass"})}
       clearFail_(key);return out_({ok:true,name:u.name,cls,token:tok_(key,u.hash)})}
     if(a==="submit"){const u=auth_(b);if(!u)return out_({ok:false,err:"auth"});
@@ -65,10 +75,11 @@ function doPost(e){
     /* --- мұғалім --- */
     if(!isT_(b.pass))return out_({ok:false});
     if(a==="list")return out_({ok:true,rows:rows_()});
-    if(a==="tconfig"){const c=cfg_();return out_({ok:true,open:c.open,classes:c.classes,users:users_().map(r=>({name:r[1],cls:r[2],ts:r[5]}))})}
+    if(a==="tconfig"){const c=cfg_();return out_({ok:true,open:c.open,classes:c.classes,roster:c.roster||{},users:users_().map(r=>({name:r[1],cls:r[2],ts:r[5]}))})}
     if(a==="setcfg"){const c=cfg_();
       if(Array.isArray(b.open))c.open=b.open.map(Number).filter(n=>n>=1&&n<=60).sort((x,y)=>x-y);
       if(b.classes&&typeof b.classes==="object"){const cl={};Object.keys(b.classes).forEach(k=>{const v=String(b.classes[k]).trim().toUpperCase();if(k&&v)cl[k]=v});c.classes=cl}
+      if(b.roster&&typeof b.roster==="object"){const r={};Object.keys(b.roster).forEach(k=>{r[k]=(b.roster[k]||[]).map(x=>String(x).trim().replace(/\s+/g," ")).filter(x=>x.length>=3)});c.roster=r}
       P_().setProperty("CONFIG",JSON.stringify(c));return out_({ok:true})}
     if(a==="resetpw"){const u=findU_(norm_(b.name)+"|"+b.cls);if(!u)return out_({ok:false});ush_().deleteRow(u.row);return out_({ok:true})}
     if(a==="grade"){const t=sh_(),ids=t.getRange(2,1,Math.max(t.getLastRow()-1,1),1).getValues().flat(),i=ids.indexOf(b.id);
