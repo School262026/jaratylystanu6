@@ -274,10 +274,11 @@ function renderTeacher(rows,tc){
 
 /* ---------- мұғалім: сынып кодтары, ашық тақырыптар, оқушылар ---------- */
 function teacherAdmin(tc){
+  const oldSrv=!tc.roster;tc.roster=tc.roster||{};
   const op=new Set(tc.open);
   return `<h2>🔑 Сынып кодтары</h2><div class="card" id="cls">`+Object.entries(tc.classes).map(([k,v])=>`<div class="grid" style="margin:4px 0"><input data-ck="${esc(k)}" value="${esc(k)}" readonly><input data-cv="${esc(k)}" value="${esc(v)}"></div>`).join("")+
   `<div class="grid" style="margin-top:8px"><input id="nk" placeholder="Жаңа сынып (6Е)"><input id="nv" placeholder="Коды"></div><p class="mut">Кодты өзгертуге болады. Сыныбына сәйкес кодты оқушыларға бер.</p></div>
-  <h2>📋 Сынып тізімдері</h2><div class="card">`+Object.keys(tc.classes).map(k=>`<b>${esc(k)}</b> <span class="mut">(${(tc.roster[k]||[]).length} оқушы; бос болса, кез келген аты қабылданады)</span><textarea data-rs="${esc(k)}" rows="5" placeholder="Әр жолға бір оқушы: Тегі Аты">${esc((tc.roster[k]||[]).join("\n"))}</textarea>`).join("")+`<p class="mut">Оқушы тек осы тізімдегі аты-жөнімен тіркеле алады. Әріптердің кіші қателерін және аты мен тегінің ретін жүйе кешіреді.</p></div>
+  <h2>📋 Сынып тізімдері</h2><div class="card">${oldSrv?"<p style='color:var(--bad)'>⚠️ Сервер жаңартылмаған: Apps Script-те «Новая версия» жасап, қайта орналастырыңыз.</p>":""}`+Object.keys(tc.classes).map(k=>`<b>${esc(k)}</b> <span class="mut">(${(tc.roster[k]||[]).length} оқушы; бос болса, кез келген аты қабылданады)</span><textarea data-rs="${esc(k)}" rows="5" placeholder="Әр жолға бір оқушы: Тегі Аты">${esc((tc.roster[k]||[]).join("\n"))}</textarea>`).join("")+`<p class="mut">Оқушы тек осы тізімдегі аты-жөнімен тіркеле алады. Әріптердің кіші қателерін және аты мен тегінің ретін жүйе кешіреді.</p></div>
   <h2>🔓 Ашық тақырыптар (<span id="oc">${op.size}</span>/60)</h2><div class="card"><div style="display:flex;flex-wrap:wrap;gap:6px" id="og">`+
   Array.from({length:60},(_,i)=>`<button class="mt" data-o="${i+1}" style="width:54px;padding:8px 0;text-align:center;${op.has(i+1)?"background:var(--pri2);border-color:var(--pri)":""}">${i+1}</button>`).join("")+
   `</div><div class="grid" style="margin-top:10px"><input id="uN" type="number" min="0" max="60" placeholder="1…N ашу"><button class="btn alt" id="uB">1…N ашу</button></div>
