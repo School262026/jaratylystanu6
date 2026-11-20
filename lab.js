@@ -20,7 +20,7 @@ function labPage(h){
 /* ---- қорытынды тест ---- */
 function labQuiz(b,L,items,type){type=type||"lab";
   let i=0,score=0;const t0=Date.now();
-  const draw=()=>{const q=items[i];b.innerHTML=`<h2>📝 Қорытынды тест</h2><div class="bar"><i style="width:${i/items.length*100}%"></i></div><p class="mut">${i+1} / ${items.length}</p><div class="card"><b>${esc(q.q)}</b></div>`+q.o.map((t,k)=>`<button class="opt" data-k="${k}">${esc(t)}</button>`).join("")+`<div id="fb"></div>`;
+  const draw=()=>{const q=items[i];b.innerHTML=`<h2>${L.h||"📝 Қорытынды тест"}</h2><div class="bar"><i style="width:${i/items.length*100}%"></i></div><p class="mut">${i+1} / ${items.length}</p><div class="card"><b>${esc(q.q)}</b></div>`+q.o.map((t,k)=>`<button class="opt" data-k="${k}">${esc(t)}</button>`).join("")+`<div id="fb"></div>`;
     b.querySelectorAll(".opt").forEach(el=>el.onclick=()=>{const k=+el.dataset.k,ok=k===q.a;if(ok)score++;
       b.querySelectorAll(".opt").forEach((e,j)=>{e.disabled=true;if(j===q.a)e.classList.add("ok");else if(j===k)e.classList.add("no")});
       $("#fb").innerHTML=`<div class="card">${ok?"✅ Дұрыс!":"❌ Қате."} ${esc(q.why||"")}</div><button class="btn" id="nx">${i+1<items.length?"Келесі →":"Аяқтау"}</button>`;
@@ -28,7 +28,7 @@ function labQuiz(b,L,items,type){type=type||"lab";
   const fin=async()=>{const max=items.length,pct=Math.round(score/max*100),g=grade(pct);
     const rec={id:uid(),name:user().name,cls:user().cls,type:type,para:0,score,max,pct,grade:g,dur:Math.round((Date.now()-t0)/1000),ts:Date.now(),status:"auto",mapset:L.id};
     const ok=await submit(rec);
-    b.innerHTML=`<div class="card"><div class="big">${pct}%</div><p style="text-align:center"><b>Баға: ${g}</b> · ${level(pct)}<br>${score} / ${max} дұрыс</p></div><p class="mut">${ok?"✅ Нәтиже мұғалімге жіберілді.":"⚠️ Нәтиже осы телефонда сақталды."}</p><button class="btn" onclick="location.reload()">🔁 Тәжірибені қайта жасау</button><a class="btn alt" style="margin-top:8px" href="#/lab">← Басқа тәжірибе</a>`};
+    b.innerHTML=`<div class="card"><div class="big">${pct}%</div><p style="text-align:center"><b>Баға: ${g}</b> · ${level(pct)}<br>${score} / ${max} дұрыс</p></div><p class="mut">${ok?"✅ Нәтиже мұғалімге жіберілді.":"⚠️ Нәтиже осы телефонда сақталды."}</p><button class="btn" onclick="location.reload()">${L.again||"🔁 Тәжірибені қайта жасау"}</button><a class="btn alt" style="margin-top:8px" href="${(L.back||["#/lab"])[0]}">${(L.back||[0,"← Басқа тәжірибе"])[1]}</a>`};
   draw();
 }
 const goQuiz=(b,L,items)=>`<button class="btn" id="gq" style="margin-top:12px">📝 Тестке өту</button>`;

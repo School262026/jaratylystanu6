@@ -55,7 +55,7 @@ async function hwPage(){
   $("#hwq").onclick=()=>{
     const pool=(weak.length?weak:Object.keys(A.P).map(Number).filter(n=>PARA[n]));
     const src=pool.length?pool:avail.slice(0,5);
-    let items=[];src.forEach(n=>PARA[n].test.forEach(q=>items.push({q:q.q,o:q.o,a:q.a,why:q.why+" (§"+n+")"})));
+    let items=[];src.forEach(n=>PARA[n].test.concat((window.QB&&QB.p[n])||[]).forEach(q=>items.push({q:q.q,o:q.o,a:q.a,why:(q.why||"")+" (§"+n+")"})));
     items=shuffle(items).slice(0,10).map(q=>{const idx=shuffle(q.o.map((t,i)=>i));return{q:q.q,why:q.why,o:idx.map(i=>q.o[i]),a:idx.indexOf(q.a)}});
     if(!items.length)return alert("Әзірге тапсырма жоқ. Алдымен бір тақырыптың тестін тапсыр.");
     $("#hwb").innerHTML="";labQuiz($("#hwb"),{id:"hw",t:"Қайталау тесті"},items,"hw");$("#hwb").scrollIntoView()};
@@ -142,4 +142,26 @@ async function ratingPage(){
   app.innerHTML=`<a href="#/">← Басты бет</a><h1>🏆 ${esc(u.cls)} сыныбының рейтингі</h1><p class="mut">Ұпай: әр тақырыптан алған ең жақсы нәтиженің қосындысы. Көбірек тақырып тапсырып, нәтижені жақсарт!</p>
   <div class="card">${r.top.map((x,i)=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)${x.me?";font-weight:800;color:var(--pri)":""}"><span>${medal(i)} ${esc(x.n)}${x.me?" (сен)":""}</span><span>${x.pts} ұпай</span></div>`).join("")}</div>
   <div class="card">Сенің орның: <b>${r.rank} / ${r.total}</b> · ${r.pts} ұпай</div>`;
+}
+
+/* ---- Тоқсандық тест (мұғалімнің тест нұсқалары) ---- */
+let QTOPEN=(()=>{try{return JSON.parse(localStorage.getItem("jt_qt"))||[]}catch(e){return[]}})();
+function qtPage(h){
+  const prev=!!(user()&&user().preview);
+  const q=+h[1],v=+h[2];
+  const open=n=>prev||QTOPEN.includes(n);
+  if(q&&v&&QB.qt[q]&&QB.qt[q][v]){
+    if(!open(q)){alert("Бұл тоқсандық тест әзірге жабық. Мұғалім ашады.");location.hash="#/qt";return}
+    const raw=QB.qt[q][v];
+    const items=raw.map(x=>{const idx=shuffle(x.o.map((t,i)=>i));return{q:x.q,o:idx.map(i=>x.o[i]),a:idx.indexOf(x.a),why:"Дұрыс жауап: "+x.o[x.a]}});
+    app.innerHTML=`<a href="#/qt">← Тоқсандық тест</a><h1>📚 ${q}-тоқсан · ${v}-нұсқа</h1><div id="qb"></div>`;
+    const b=$("#qb");
+    b.innerHTML=`<div class="card">${items.length} сұрақ. Әр жауаптан кейін дұрыс жауап көрсетіледі. Нәтиже бағаға жазылады.</div><button class="btn" id="qs">Бастау</button>`;
+    $("#qs").onclick=()=>labQuiz(b,{id:"q"+q+"v"+v,h:"📚 "+q+"-тоқсан, "+v+"-нұсқа",again:"🔁 Қайта тапсыру",back:["#/qt","← Тоқсандық тест"]},items,"qt");
+    return;
+  }
+  let t=`<a href="#/">← Басты бет</a><h1>📚 Тоқсандық тест</h1><p class="mut">Мұғалім ашқан тоқсанның тесті. Әр тоқсанда 3 нұсқа бар.</p>`;
+  [1,2,3,4].forEach(n=>{const vs=Object.keys(QB.qt[n]||{}).map(Number).sort((a,b)=>a-b),o=open(n);
+    t+=`<div class="card"><b>${n}-тоқсан</b> ${o?"":"<small class='mut'>🔒 мұғалім ашады</small>"}<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">${vs.map(x=>`<a class="btn ${o?"":"alt"}" style="width:auto;padding:8px 16px;${o?"":"pointer-events:none;opacity:.5"}" href="#/qt/${n}/${x}">${x}-нұсқа (${QB.qt[n][x].length})</a>`).join("")}</div></div>`});
+  app.innerHTML=t;
 }

@@ -46,7 +46,7 @@ function doPost(e){
   const lock=LockService.getScriptLock();lock.waitLock(20000);
   try{
     const b=JSON.parse(e.postData.contents),a=b.action;
-    if(a==="config"){const c=cfg_();return out_({ok:true,open:c.open,links:c.links||{},rating:c.rating!==false})}
+    if(a==="config"){const c=cfg_();return out_({ok:true,open:c.open,links:c.links||{},rating:c.rating!==false,qt:c.qt||[]})}
     if(a==="check"){const cls=clsByCode_(b.code);if(!cls)return out_({ok:false,err:"code"});
       const w=who_(cls,b.name);if(!w.ok)return out_({ok:false,err:"roster"});
       return out_({ok:true,cls,name:w.name,exists:!!findU_(norm_(w.name)+"|"+cls)})}
@@ -64,7 +64,8 @@ function doPost(e){
       clearFail_(key);return out_({ok:true,name:u.name,cls,token:tok_(key,u.hash)})}
     if(a==="submit"){const u=auth_(b);if(!u)return out_({ok:false,err:"auth"});
       const r=b.record;if(!r||!r.id)return out_({ok:false});
-      if(r.type!=="map"&&r.type!=="lab"&&r.type!=="hw"&&cfg_().open.indexOf(Number(r.para))<0)return out_({ok:false,err:"closed"});
+      if(r.type==="qt"&&(cfg_().qt||[]).indexOf(Number(String(r.mapset||"").charAt(1)))<0)return out_({ok:false,err:"closed"});
+      if(r.type!=="map"&&r.type!=="lab"&&r.type!=="hw"&&r.type!=="qt"&&cfg_().open.indexOf(Number(r.para))<0)return out_({ok:false,err:"closed"});
       r.name=u.name;r.cls=u.cls;
       const t=sh_(),ids=t.getRange(2,1,Math.max(t.getLastRow()-1,1),1).getValues().flat();
       const row=HEAD.map(h=>h==="ans"?(r.ans?JSON.stringify(r.ans):""):(r[h]===undefined||r[h]===null?"":r[h]));
@@ -86,13 +87,14 @@ function doPost(e){
     if(!isT_(b.pass)){addFail_("T");return out_({ok:false})}
     clearFail_("T");
     if(a==="list")return out_({ok:true,rows:rows_()});
-    if(a==="tconfig"){const c=cfg_();return out_({ok:true,open:c.open,classes:c.classes,roster:c.roster||{},links:c.links||{},rating:c.rating!==false,users:users_().map(r=>({name:r[1],cls:r[2],ts:r[5]}))})}
+    if(a==="tconfig"){const c=cfg_();return out_({ok:true,open:c.open,classes:c.classes,roster:c.roster||{},links:c.links||{},rating:c.rating!==false,qt:c.qt||[],users:users_().map(r=>({name:r[1],cls:r[2],ts:r[5]}))})}
     if(a==="setcfg"){const c=cfg_();
       if(Array.isArray(b.open))c.open=b.open.map(Number).filter(n=>n>=1&&n<=60).sort((x,y)=>x-y);
       if(b.classes&&typeof b.classes==="object"){const cl={};Object.keys(b.classes).forEach(k=>{const v=String(b.classes[k]).trim().toUpperCase();if(k&&v)cl[k]=v});c.classes=cl}
       if(b.roster&&typeof b.roster==="object"){const r={};Object.keys(b.roster).forEach(k=>{r[k]=(b.roster[k]||[]).map(x=>String(x).trim().replace(/\s+/g," ")).filter(x=>x.length>=3)});c.roster=r}
       if(b.links&&typeof b.links==="object"){const lk={};Object.keys(b.links).forEach(k=>{const n=Number(k);if(n<1||n>60)return;const arr=(b.links[k]||[]).filter(x=>x&&/^https?:\/\//i.test(String(x.u))).map(x=>({t:String(x.t||"Материал").slice(0,120),u:String(x.u).slice(0,500)}));if(arr.length)lk[n]=arr});c.links=lk}
       if(typeof b.rating==="boolean")c.rating=b.rating;
+      if(Array.isArray(b.qt))c.qt=b.qt.map(Number).filter(n=>n>=1&&n<=4);
       P_().setProperty("CONFIG",JSON.stringify(c));return out_({ok:true})}
     if(a==="delres"){const t=sh_(),v=t.getDataRange().getValues();let n=0;
       for(let i=v.length-1;i>=1;i--)if(v[i][HEAD.indexOf("name")]===b.name&&String(v[i][HEAD.indexOf("cls")])===String(b.cls)){t.deleteRow(i+1);n++}

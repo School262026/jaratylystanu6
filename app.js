@@ -11,9 +11,9 @@ const user=()=>{const u=ls.get("jt_user",null);return u&&u.token?u:null};
 /* ашық тақырыптар (мұғалім басқарады) */
 const isOpen=n=>{const u=ls.get("jt_user",null);return !!(u&&u.preview)||OPEN.has(n)};
 let OPEN=new Set(ls.get("jt_open",Array.from({length:20},(_,i)=>i+1)));
-async function loadOpen(){try{const r=await api({action:"config"});if(r.ok){const n=new Set(r.open);const ch=n.size!==OPEN.size||[...n].some(x=>!OPEN.has(x));OPEN=n;ls.set("jt_open",r.open);if(r.links){LINKS=r.links;ls.set("jt_links",r.links)}if(typeof r.rating==="boolean"){RATING=r.rating;ls.set("jt_rating",r.rating)}if(ch&&/^(#\/?|#\/p\/\d+)?$/.test(location.hash))route()}}catch(e){}}
+async function loadOpen(){try{const r=await api({action:"config"});if(r.ok){const n=new Set(r.open);const ch=n.size!==OPEN.size||[...n].some(x=>!OPEN.has(x));OPEN=n;ls.set("jt_open",r.open);if(r.qt){QTOPEN=r.qt;ls.set("jt_qt",r.qt)}if(r.links){LINKS=r.links;ls.set("jt_links",r.links)}if(typeof r.rating==="boolean"){RATING=r.rating;ls.set("jt_rating",r.rating)}if(ch&&/^(#\/?|#\/p\/\d+)?$/.test(location.hash))route()}}catch(e){}}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-const TYPES={pw:"Сарамандық жұмыс",hw:"Үй тапсырмасы (қайталау)",lab:"Лаборатория",map:"Контурлы карта",kviz:"Квиз-тест",test:"Тест",nis:"НИШ-тест",quiz:"Викторина",game:"Ойын",ws:"Жұмыс парағы"};
+const TYPES={qt:"Тоқсандық тест",pw:"Сарамандық жұмыс",hw:"Үй тапсырмасы (қайталау)",lab:"Лаборатория",map:"Контурлы карта",kviz:"Квиз-тест",test:"Тест",nis:"НИШ-тест",quiz:"Викторина",game:"Ойын",ws:"Жұмыс парағы"};
 
 /* ---------- сақтау және синхрондау ---------- */
 async function api(body){
@@ -51,6 +51,7 @@ function route(){
   if(!u)return login();
   if(h[0]==="p"){const n=+h[1];if(!isOpen(n)){alert("Бұл тақырып әзірге жабық. Мұғалім ашады.");location.hash="#/";return}return h[2]?topicPage(n,h[2]):topic(n)}
   if(h[0]==="me")return me();
+  if(h[0]==="qt")return qtPage(h.map(x=>decodeURIComponent(x)));
   if(h[0]==="pw")return pwList();
   if(h[0]==="hw")return hwPage();
   if(h[0]==="rating")return ratingPage();
@@ -91,7 +92,7 @@ function home(){
   const res=ls.get("jt_res",[]).filter(x=>x.name===user().name);
   const done=new Set(res.filter(x=>x.type==="test").map(x=>x.para));
   let h=`<h1>Жаратылыстану · 6-сынып</h1><p class="mut">Атамұра оқулығы бойынша. Параграфты таңда.</p>${newBanner()}
-  <div class="grid"><a class="tile" href="#/maps"><span>🗺️</span>Контурлы карта</a><a class="tile" href="#/lab"><span>🧪</span>Лаборатория</a><a class="tile" href="#/pw"><span>🔬</span>Сарамандық жұмыс</a><a class="tile" href="#/hw"><span>🏠</span>Үй тапсырмасы</a>${RATING&&!(user()&&user().preview)?`<a class="tile" href="#/rating"><span>🏆</span>Рейтинг</a>`:""}<a class="tile" href="#/me"><span>📊</span>Менің нәтижем</a><a class="tile" href="#/teacher"><span>🔐</span>Мұғалім</a></div>`;
+  <div class="grid"><a class="tile" href="#/maps"><span>🗺️</span>Контурлы карта</a><a class="tile" href="#/lab"><span>🧪</span>Лаборатория</a><a class="tile" href="#/qt"><span>📚</span>Тоқсандық тест</a><a class="tile" href="#/pw"><span>🔬</span>Сарамандық жұмыс</a><a class="tile" href="#/hw"><span>🏠</span>Үй тапсырмасы</a>${RATING&&!(user()&&user().preview)?`<a class="tile" href="#/rating"><span>🏆</span>Рейтинг</a>`:""}<a class="tile" href="#/me"><span>📊</span>Менің нәтижем</a><a class="tile" href="#/teacher"><span>🔐</span>Мұғалім</a></div>`;
   SECTIONS.forEach(([t,[a,b]])=>{h+=`<h2>${esc(t)}</h2><div class="card plist">`;
     for(let i=a;i<=b;i++){const on=!!PARA[i]&&isOpen(i),lock=!!PARA[i]&&!isOpen(i);h+=`<a href="${on?"#/p/"+i:"#"}" class="${on?"":"off"}"><span class="num">§${i}</span><span>${esc(TITLES[i-1])}</span>${done.has(i)?"✅":lock?"<small class='mut'>🔒 мұғалім ашады</small>":on?"":"<small class='mut'>жақында</small>"}</a>`}
     h+="</div>"});
@@ -142,11 +143,12 @@ function hw(n,P,b){b.innerHTML=`<h2>🏠 Үй тапсырмасы</h2><div clas
 function runChoice(n,mode){
   const P=PARA[n],b=box();
   const termQ=()=>P.terms.map((t,i)=>({q:"«"+t[0]+"» дегеніміз не?",why:t[0]+" — "+t[1],o:shuffle([{t:t[1],c:true}].concat(shuffle(P.terms.filter((_,j)=>j!==i)).slice(0,3).map(x=>({t:x[1],c:false}))))}));
+  const POOL=()=>P.test.concat(((window.QB&&QB.p[n])||[]).map(x=>({q:x.q,o:x.o,a:x.a,why:"Тоқсандық тест сұрағы."})));
   let items=mode==="kviz"
-    ?shuffle(P.test.map(q=>({q:q.q,why:q.why,o:shuffle(q.o.map((t,i)=>({t,c:i===q.a})))})).concat(termQ())).slice(0,10)
+    ?shuffle(POOL().map(q=>({q:q.q,why:q.why,o:shuffle(q.o.map((t,i)=>({t,c:i===q.a})))})).concat(termQ())).slice(0,10)
     :mode==="quiz"
     ?shuffle(P.quiz).map(q=>({q:q.q,o:[{t:"Дұрыс",c:q.a},{t:"Бұрыс",c:!q.a}],why:q.why}))
-    :shuffle(P.test).map(q=>({q:q.q,why:q.why,o:shuffle(q.o.map((t,i)=>({t,c:i===q.a})))}));
+    :shuffle(POOL()).slice(0,mode==="nis"?15:12).map(q=>({q:q.q,why:q.why,o:shuffle(q.o.map((t,i)=>({t,c:i===q.a})))}));
   const nis=mode==="nis",kviz=mode==="kviz",feedback=!nis;let i=0,score=0,log=[],left=items.length*90,t0=Date.now(),ql=20,pts=0,streak=0;
   if(nis){window._tm=setInterval(()=>{left--;const e=$("#tm");if(e)e.textContent="⏱ "+Math.floor(left/60)+":"+String(left%60).padStart(2,"0");if(left<=0){clearInterval(window._tm);finish()}},1000)}
   const draw=()=>{const q=items[i];b.innerHTML=(nis?`<div class="timer" id="tm">⏱</div>`:kviz?`<div class="timer" id="tm">⏱ 20 · ⚡ ${pts}</div>`:"")+`<div class="bar"><i style="width:${i/items.length*100}%"></i></div>
@@ -296,9 +298,11 @@ function teacherAdmin(tc){
   <h2>🎞️ Презентация / видео сілтемелері</h2><div class="card"><input id="ln" type="number" min="1" max="60" placeholder="Параграф нөмірі (1–60)"><textarea id="lt" rows="4" placeholder="Әр жолға бір сілтеме: Атауы | https://сілтеме"></textarea><p class="mut">YouTube, Google Drive (файл), Google Slides сілтемелері тақырып ішінде көрінеді. Басқа сілтеме жаңа терезеде ашылады. Параметрлерді сақтау түймесін басуды ұмытпа.</p></div>
   <h2>📢 Хабарландыру және рейтинг</h2><div class="card"><div class="grid"><input id="an" type="number" min="1" max="60" placeholder="Тақырып №"><button class="btn alt" id="ab">📋 Хабарландыру мәтіні</button></div><p class="mut">Мәтінді көшіріп, сынып чатына (WhatsApp) жіберіңіз. Оқушы қосымшаны ашқанда да «Жаңа тақырып» хабары шығады.</p>
   <label style="display:block;margin-top:8px"><input type="checkbox" id="rt" style="width:auto" ${tc.rating===false?"":"checked"}> Сынып рейтингін оқушыларға көрсету</label></div>
+  <h2>📚 Тоқсандық тест (оқушыларға ашу)</h2><div class="card" id="qtc">${[1,2,3,4].map(n=>`<label style="display:inline-block;margin-right:14px"><input type="checkbox" data-qt="${n}" style="width:auto" ${(tc.qt||[]).includes(n)?"checked":""}> ${n}-тоқсан</label>`).join("")}<p class="mut">Белгіленген тоқсанның тесті (3 нұсқа) оқушыларға ашылады. «Параметрлерді сақтау» түймесін басыңыз.</p></div>
   <h2>🔓 Ашық тақырыптар (<span id="oc">${op.size}</span>/60)</h2><div class="card"><div style="display:flex;flex-wrap:wrap;gap:6px" id="og">`+
   Array.from({length:60},(_,i)=>`<button class="mt" data-o="${i+1}" style="width:54px;padding:8px 0;text-align:center;${op.has(i+1)?"background:var(--pri2);border-color:var(--pri)":""}">${i+1}</button>`).join("")+
   `</div><div class="grid" style="margin-top:10px"><input id="uN" type="number" min="0" max="60" placeholder="1…N ашу"><button class="btn alt" id="uB">1…N ашу</button></div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><button class="btn alt" data-q="1,18" style="width:auto;padding:6px 10px">1-тоқсан (§1–18)</button><button class="btn alt" data-q="19,30" style="width:auto;padding:6px 10px">2-тоқсан (§19–30)</button><button class="btn alt" data-q="31,47" style="width:auto;padding:6px 10px">3-тоқсан (§31–47)</button><button class="btn alt" data-q="48,60" style="width:auto;padding:6px 10px">4-тоқсан (§48–60)</button></div>
   <p class="mut">Түймені бассаң, тақырып ашылады/жабылады. «Сақтау» басқанша өзгеріс күшіне енбейді.</p></div>
   <button class="btn" id="svc">💾 Параметрлерді сақтау</button>
   <h2>👥 Оқушылар (${tc.users.length})</h2><div class="card"><table><tr><th>Оқушы</th><th>Сынып</th><th></th></tr>`+
@@ -311,11 +315,12 @@ function bindAdmin(tc){
   $("#ln").oninput=()=>{ln=+$("#ln").value;$("#lt").value=(links[ln]||[]).map(x=>x.t+" | "+x.u).join("\n")};
   $("#lt").oninput=()=>{if(!ln)return;links[ln]=$("#lt").value.split("\n").map(s=>s.trim()).filter(Boolean).map(s=>{const p=s.split("|").map(x=>x.trim());return{t:p.length>1?p[0]:"Материал",u:p[p.length-1]}}).filter(x=>/^https?:\/\//i.test(x.u))};
   $("#ab").onclick=async()=>{const n=+$("#an").value;if(!n||!TITLES[n-1])return alert("Тақырып нөмірін жаз (1–60)");const t=announceText(n);try{await navigator.clipboard.writeText(t);alert("Көшірілді:"+"\n\n"+t)}catch(e){prompt("Мәтінді көшір:",t)}};
+  app.querySelectorAll("[data-q]").forEach(bt=>bt.onclick=()=>{const [a,b2]=bt.dataset.q.split(",").map(Number);for(let i=a;i<=b2;i++)op.add(i);paint()});
   $("#uB").onclick=()=>{const n=+$("#uN").value;op.clear();for(let i=1;i<=n;i++)op.add(i);paint()};
   $("#svc").onclick=async()=>{const classes={};app.querySelectorAll("[data-ck]").forEach(k=>{const v=app.querySelector(`[data-cv="${k.dataset.ck}"]`).value.trim();if(v)classes[k.dataset.ck]=v});
     const nk=$("#nk").value.trim(),nv=$("#nv").value.trim();if(nk&&nv)classes[nk]=nv;
     const roster={};app.querySelectorAll("[data-rs]").forEach(t=>{roster[t.dataset.rs]=t.value.split("\n").map(x=>x.trim()).filter(Boolean)});
-    try{const r=await api({action:"setcfg",pass:TP,open:[...op],classes,roster,links,rating:$("#rt").checked});if(!r.ok)throw 0;alert("Сақталды ✅");teacher()}catch(e){alert("Қате: сақталмады")}};
+    try{const r=await api({action:"setcfg",pass:TP,open:[...op],classes,roster,links,rating:$("#rt").checked,qt:[...app.querySelectorAll("[data-qt]")].filter(x=>x.checked).map(x=>+x.dataset.qt)});if(!r.ok)throw 0;alert("Сақталды ✅");teacher()}catch(e){alert("Қате: сақталмады")}};
   app.querySelectorAll("[data-rp]").forEach(b=>b.onclick=async()=>{const u=tc.users[+b.dataset.rp];if(!confirm(u.name+" ("+u.cls+") құпиясөзін өшіру? Оқушы жаңадан құпиясөз жасайды."))return;
     try{const r=await api({action:"resetpw",pass:TP,name:u.name,cls:u.cls});if(!r.ok)throw 0;alert("Өшірілді");teacher()}catch(e){alert("Қате")}});
 }
