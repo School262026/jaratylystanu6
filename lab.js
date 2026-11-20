@@ -5,6 +5,7 @@ const LABS=[
  {id:"heat",i:"🌡️",t:"Мұзды қыздыру: балқу және қайнау",p:"§21"},
  {id:"press",i:"⛷️",t:"Қысым: адам қарда неге батады?",p:"§45"}];
 
+const LABFN={soda:labSoda,ind:labInd,heat:labHeat,press:labPress};
 function labMenu(){
   let h=`<a href="#/">← Басты бет</a><h1>🧪 Виртуалды лаборатория</h1><p class="mut">Қауіпсіз тәжірибелер: өзің істеп, бақыла, соңында қысқа тест тапсыр.</p>`;
   LABS.forEach(x=>h+=`<a class="card" style="display:flex;gap:12px;align-items:center;text-decoration:none;color:inherit" href="#/lab/${x.id}"><span style="font-size:30px">${x.i}</span><span><b>${x.t}</b><br><span class="mut">${x.p}</span></span></a>`);
@@ -14,7 +15,7 @@ function labPage(h){
   const id=h[1];if(!id)return labMenu();
   const L=LABS.find(x=>x.id===id);if(!L)return labMenu();
   app.innerHTML=`<a href="#/lab">← Лаборатория</a><h1>${L.i} ${L.t}</h1><div id="lb"></div>`;
-  ({soda:labSoda,ind:labInd,heat:labHeat,press:labPress})[id]($("#lb"),L);
+  LABFN[id]($("#lb"),L);
 }
 /* ---- қорытынды тест ---- */
 function labQuiz(b,L,items,type){type=type||"lab";
