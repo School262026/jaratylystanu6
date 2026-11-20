@@ -46,7 +46,7 @@ function doPost(e){
   const lock=LockService.getScriptLock();lock.waitLock(20000);
   try{
     const b=JSON.parse(e.postData.contents),a=b.action;
-    if(a==="config"){const c=cfg_();return out_({ok:true,open:c.open,links:c.links||{}})}
+    if(a==="config"){const c=cfg_();return out_({ok:true,open:c.open,links:c.links||{},rating:c.rating!==false})}
     if(a==="check"){const cls=clsByCode_(b.code);if(!cls)return out_({ok:false,err:"code"});
       const w=who_(cls,b.name);if(!w.ok)return out_({ok:false,err:"roster"});
       return out_({ok:true,cls,name:w.name,exists:!!findU_(norm_(w.name)+"|"+cls)})}
@@ -72,17 +72,27 @@ function doPost(e){
       return out_({ok:true})}
     if(a==="mine"){const u=auth_(b);if(!u)return out_({ok:false,err:"auth"});
       return out_({ok:true,rows:rows_().filter(r=>r.name===u.name&&r.cls===u.cls)})}
+    if(a==="rating"){const u=auth_(b);if(!u)return out_({ok:false,err:"auth"});if(cfg_().rating===false)return out_({ok:false,err:"off"});
+      const KN={test:1,quiz:1,kviz:1,nis:1},best={};
+      rows_().forEach(x=>{if(String(x.cls)!==String(u.cls)||x.pct===undefined||!(x.type in KN)||!(x.para>0))return;const k=x.name+"|"+x.para;best[k]=Math.max(best[k]||0,Number(x.pct))});
+      const pts={};Object.keys(best).forEach(k=>{const n=k.split("|")[0];pts[n]=(pts[n]||0)+best[k]/10});
+      users_().filter(r=>r[2]===u.cls).forEach(r=>{if(!(r[1] in pts))pts[r[1]]=0});
+      const arr=Object.keys(pts).map(n=>({full:n,pts:Math.round(pts[n]*10)/10})).sort((a,b)=>b.pts-a.pts);
+      const short=f=>{const p=f.split(" ");return p.length>1?p[1]+" "+p[0].charAt(0)+".":f};
+      const rank=arr.findIndex(x=>x.full===u.name)+1;
+      return out_({ok:true,total:arr.length,rank:rank||arr.length,pts:(arr[rank-1]||{pts:0}).pts,top:arr.slice(0,5).map(x=>({n:short(x.full),pts:x.pts,me:x.full===u.name}))})}
     /* --- мұғалім --- */
     if(failed_("T")>=MAXFAIL)return out_({ok:false,err:"locked"});
     if(!isT_(b.pass)){addFail_("T");return out_({ok:false})}
     clearFail_("T");
     if(a==="list")return out_({ok:true,rows:rows_()});
-    if(a==="tconfig"){const c=cfg_();return out_({ok:true,open:c.open,classes:c.classes,roster:c.roster||{},links:c.links||{},users:users_().map(r=>({name:r[1],cls:r[2],ts:r[5]}))})}
+    if(a==="tconfig"){const c=cfg_();return out_({ok:true,open:c.open,classes:c.classes,roster:c.roster||{},links:c.links||{},rating:c.rating!==false,users:users_().map(r=>({name:r[1],cls:r[2],ts:r[5]}))})}
     if(a==="setcfg"){const c=cfg_();
       if(Array.isArray(b.open))c.open=b.open.map(Number).filter(n=>n>=1&&n<=60).sort((x,y)=>x-y);
       if(b.classes&&typeof b.classes==="object"){const cl={};Object.keys(b.classes).forEach(k=>{const v=String(b.classes[k]).trim().toUpperCase();if(k&&v)cl[k]=v});c.classes=cl}
       if(b.roster&&typeof b.roster==="object"){const r={};Object.keys(b.roster).forEach(k=>{r[k]=(b.roster[k]||[]).map(x=>String(x).trim().replace(/\s+/g," ")).filter(x=>x.length>=3)});c.roster=r}
       if(b.links&&typeof b.links==="object"){const lk={};Object.keys(b.links).forEach(k=>{const n=Number(k);if(n<1||n>60)return;const arr=(b.links[k]||[]).filter(x=>x&&/^https?:\/\//i.test(String(x.u))).map(x=>({t:String(x.t||"Материал").slice(0,120),u:String(x.u).slice(0,500)}));if(arr.length)lk[n]=arr});c.links=lk}
+      if(typeof b.rating==="boolean")c.rating=b.rating;
       P_().setProperty("CONFIG",JSON.stringify(c));return out_({ok:true})}
     if(a==="delres"){const t=sh_(),v=t.getDataRange().getValues();let n=0;
       for(let i=v.length-1;i>=1;i--)if(v[i][HEAD.indexOf("name")]===b.name&&String(v[i][HEAD.indexOf("cls")])===String(b.cls)){t.deleteRow(i+1);n++}

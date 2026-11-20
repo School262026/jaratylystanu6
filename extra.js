@@ -73,3 +73,73 @@ function linksPage(n,P,b){
   b.innerHTML=`<h2>🎞️ Презентация және видео</h2>`+(L.length?L.map(x=>{const e=embedUrl(x.u);
     return`<div class="card"><b>${esc(x.t)}</b>${e?`<div style="position:relative;padding-top:56.25%;margin:8px 0"><iframe src="${esc(e)}" style="position:absolute;inset:0;width:100%;height:100%;border:0;border-radius:10px" allowfullscreen loading="lazy"></iframe></div>`:""}<a class="btn alt" style="margin-top:8px" target="_blank" rel="noopener" href="${esc(x.u)}">↗ Жаңа терезеде ашу</a></div>`}).join(""):`<div class="card">Бұл тақырыпқа әзірге материал қосылмаған.</div>`);
 }
+
+/* ---- 1. Ата-анаға есеп (мұғалім) ---- */
+function reportData(rows,name,cls){
+  const mine=rows.filter(x=>x.name===name&&String(x.cls)===String(cls));
+  const A=analyze(mine);
+  const ws=mine.filter(x=>x.type==="ws").sort((a,b)=>b.ts-a.ts);
+  const recent=mine.filter(x=>x.pct!=null||x.type==="ws").sort((a,b)=>b.ts-a.ts).slice(0,15);
+  return{mine,A,ws,recent};
+}
+function reportText(name,cls,D){
+  const A=D.A,g=A.overall==null?"—":grade(A.overall);
+  return"Құрметті ата-ана! "+name+" ("+cls+") — «Жаратылыстану» пәні бойынша есеп.\n"+
+   (A.overall==null?"Әзірге тест тапсырылмаған.":"Жалпы нәтиже: "+A.overall+"% (баға "+g+"). Тапсырылған тақырып: "+Object.keys(A.P).length+".")+
+   (A.weak.length?"\nҚайталауға кеңес: "+A.weak.map(n=>"§"+n).join(", ")+".":"")+
+   (A.strong.length?"\nЖақсы меңгерген: "+A.strong.map(n=>"§"+n).join(", ")+".":"")+
+   "\nЖаратылыстану 6-сынып қосымшасы: "+location.origin;
+}
+function reportHtml(name,cls,D){
+  const A=D.A,g=A.overall==null?"—":grade(A.overall),dt=new Date().toLocaleDateString("kk-KZ");
+  const tn=n=>"§"+n+" "+(TITLES[n-1]||"");
+  return`<div id="rep" class="card" style="background:#fff;color:#000"><h2 style="margin:0">Жаратылыстану · 6-сынып</h2><p class="mut" style="margin:2px 0 10px">Оқу үлгерімі туралы есеп · ${dt}</p>
+  <p style="font-size:18px"><b>${esc(name)}</b> · ${esc(cls)}</p>
+  <p>Жалпы нәтиже: <b>${A.overall==null?"—":A.overall+"%"}</b> · Баға: <b>${g}</b> · Меңгерген тақырып: <b>${Object.keys(A.P).length}</b></p>
+  ${A.secs.filter(s=>s.n).map(s=>barRow(s.t.replace(/ бөлім.*/,"")+". "+(s.t.split(". ")[1]||""),s.avg)).join("")}
+  ${A.strong.length?`<p>✅ <b>Жақсы меңгерген:</b> ${A.strong.map(tn).join("; ")}</p>`:""}
+  ${A.weak.length?`<p>⚠️ <b>Қайталау қажет:</b> ${A.weak.map(tn).join("; ")}</p>`:""}
+  <table style="margin-top:8px"><tr><th>Күні</th><th>Түрі</th><th>§</th><th>Нәтиже</th></tr>${D.recent.map(x=>`<tr><td>${new Date(x.ts).toLocaleDateString("kk-KZ")}</td><td>${TYPES[x.type]||x.type}</td><td>${x.para||"—"}</td><td>${x.type==="ws"?(x.grade?"баға "+x.grade:"тексерілуде"):x.pct+"% · "+x.grade}</td></tr>`).join("")}</table>
+  <p style="margin-top:10px"><b>Ұсыныс:</b> ${A.weak.length?"әлсіз тақырыптарды қайталап, қосымшадағы «Үй тапсырмасы» бөліміндегі автоматты тестті орындау.":A.overall==null?"қосымшаға кіріп, алғашқы тақырыптардың тестін тапсыру.":"жақсы нәтижені сақтап, жаңа тақырыптарды уақытында орындау."}</p>
+  <p class="mut" style="margin-top:18px">Мұғалім: ____________________</p></div>`;
+}
+function openReport(rows,name,cls){
+  const D=reportData(rows,name,cls),prev=app.innerHTML;
+  const st=document.createElement("style");st.id="pst";st.textContent="@media print{body *{visibility:hidden}#rep,#rep *{visibility:visible}#rep{position:absolute;left:0;top:0;width:100%;border:0}#nav{display:none}}";document.head.appendChild(st);
+  app.innerHTML=`<a href="#" id="rb">← Панельге қайту</a><h1>📄 Ата-анаға есеп</h1>${reportHtml(name,cls,D)}
+  <div class="grid" style="margin-top:10px"><button class="btn" id="rp">🖨️ Басып шығару / PDF</button><a class="btn alt" id="rw" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(reportText(name,cls,D))}">💬 WhatsApp</a></div>
+  <button class="btn alt" id="rc" style="margin-top:8px">📋 Мәтінді көшіру</button><p class="mut">PDF сақтау үшін: басып шығару терезесінде «Принтер» орнына «PDF ретінде сақтау» таңда.</p>`;
+  $("#rb").onclick=e=>{e.preventDefault();st.remove();teacher()};
+  $("#rp").onclick=()=>window.print();
+  $("#rc").onclick=async()=>{try{await navigator.clipboard.writeText(reportText(name,cls,D));alert("Көшірілді")}catch(e){prompt("Мәтінді көшір:",reportText(name,cls,D))}};
+}
+
+/* ---- 2. Жаңа тақырып туралы хабарландыру ---- */
+function newTopics(){
+  const seen=new Set(JSON.parse(localStorage.getItem("jt_seen")||"null")||[]);
+  const first=!localStorage.getItem("jt_seen");
+  const cur=[...OPEN].filter(n=>PARA[n]);
+  const fresh=first?[]:cur.filter(n=>!seen.has(n));
+  return{cur,fresh,first}
+}
+function markSeen(){try{localStorage.setItem("jt_seen",JSON.stringify([...OPEN]))}catch(e){}}
+function newBanner(){
+  const N=newTopics();if(N.first){markSeen();return""}
+  if(!N.fresh.length)return"";
+  return`<div class="card" style="border-color:var(--pri);background:var(--pri2)"><b>🆕 Жаңа тақырып ашылды!</b><br>${N.fresh.map(n=>`<a href="#/p/${n}">§${n} ${esc(TITLES[n-1])}</a>`).join("<br>")}<br><a href="#" id="seen" class="mut">Түсінікті, жасыр</a></div>`;
+}
+function announceText(n){return"🌿 Жаратылыстану 6: жаңа тақырып ашылды — §"+n+". "+TITLES[n-1]+".\nКонспектті оқып, тестті тапсырыңдар: "+location.origin}
+
+/* ---- 3. Сынып рейтингі ---- */
+let RATING=(()=>{try{return JSON.parse(localStorage.getItem("jt_rating"))!==false}catch(e){return true}})();
+async function ratingPage(){
+  app.innerHTML=`<a href="#/">← Басты бет</a><h1>🏆 Сынып рейтингі</h1><p class="mut">Жүктелуде...</p>`;
+  const u=user();let r=null;
+  if(u&&!u.preview){try{r=await api({action:"rating",name:u.name,cls:u.cls,token:u.token})}catch(e){}}
+  if(location.hash!=="#/rating")return;
+  if(!r||!r.ok){app.innerHTML=`<a href="#/">← Басты бет</a><h1>🏆 Сынып рейтингі</h1><div class="card">${u&&u.preview?"Тест режимінде рейтинг жоқ.":r&&r.err==="off"?"Рейтинг әзірге өшірулі.":"Рейтингті көрсету мүмкін болмады."}</div>`;return}
+  const medal=i=>["🥇","🥈","🥉"][i]||(i+1)+".";
+  app.innerHTML=`<a href="#/">← Басты бет</a><h1>🏆 ${esc(u.cls)} сыныбының рейтингі</h1><p class="mut">Ұпай: әр тақырыптан алған ең жақсы нәтиженің қосындысы. Көбірек тақырып тапсырып, нәтижені жақсарт!</p>
+  <div class="card">${r.top.map((x,i)=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)${x.me?";font-weight:800;color:var(--pri)":""}"><span>${medal(i)} ${esc(x.n)}${x.me?" (сен)":""}</span><span>${x.pts} ұпай</span></div>`).join("")}</div>
+  <div class="card">Сенің орның: <b>${r.rank} / ${r.total}</b> · ${r.pts} ұпай</div>`;
+}
