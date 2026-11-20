@@ -11,9 +11,9 @@ const user=()=>{const u=ls.get("jt_user",null);return u&&u.token?u:null};
 /* ашық тақырыптар (мұғалім басқарады) */
 const isOpen=n=>{const u=ls.get("jt_user",null);return !!(u&&u.preview)||OPEN.has(n)};
 let OPEN=new Set(ls.get("jt_open",Array.from({length:20},(_,i)=>i+1)));
-async function loadOpen(){try{const r=await api({action:"config"});if(r.ok){const n=new Set(r.open);const ch=n.size!==OPEN.size||[...n].some(x=>!OPEN.has(x));OPEN=n;ls.set("jt_open",r.open);if(ch&&/^(#\/?|#\/p\/\d+)?$/.test(location.hash))route()}}catch(e){}}
+async function loadOpen(){try{const r=await api({action:"config"});if(r.ok){const n=new Set(r.open);const ch=n.size!==OPEN.size||[...n].some(x=>!OPEN.has(x));OPEN=n;ls.set("jt_open",r.open);if(r.links){LINKS=r.links;ls.set("jt_links",r.links)}if(ch&&/^(#\/?|#\/p\/\d+)?$/.test(location.hash))route()}}catch(e){}}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-const TYPES={lab:"Лаборатория",map:"Контурлы карта",kviz:"Квиз-тест",test:"Тест",nis:"НИШ-тест",quiz:"Викторина",game:"Ойын",ws:"Жұмыс парағы"};
+const TYPES={hw:"Үй тапсырмасы (қайталау)",lab:"Лаборатория",map:"Контурлы карта",kviz:"Квиз-тест",test:"Тест",nis:"НИШ-тест",quiz:"Викторина",game:"Ойын",ws:"Жұмыс парағы"};
 
 /* ---------- сақтау және синхрондау ---------- */
 async function api(body){
@@ -51,6 +51,7 @@ function route(){
   if(!u)return login();
   if(h[0]==="p"){const n=+h[1];if(!isOpen(n)){alert("Бұл тақырып әзірге жабық. Мұғалім ашады.");location.hash="#/";return}return h[2]?topicPage(n,h[2]):topic(n)}
   if(h[0]==="me")return me();
+  if(h[0]==="hw")return hwPage();
   if(h[0]==="lab")return labPage(h.map(x=>decodeURIComponent(x)));
   if(h[0]==="maps")return mapsPage(h.map(x=>decodeURIComponent(x)));
   home();
@@ -87,7 +88,7 @@ function home(){
   const res=ls.get("jt_res",[]).filter(x=>x.name===user().name);
   const done=new Set(res.filter(x=>x.type==="test").map(x=>x.para));
   let h=`<h1>Жаратылыстану · 6-сынып</h1><p class="mut">Атамұра оқулығы бойынша. Параграфты таңда.</p>
-  <div class="grid"><a class="tile" href="#/maps"><span>🗺️</span>Контурлы карта</a><a class="tile" href="#/lab"><span>🧪</span>Лаборатория</a><a class="tile" href="#/me"><span>📊</span>Менің нәтижем</a><a class="tile" href="#/teacher"><span>🔐</span>Мұғалім</a></div>`;
+  <div class="grid"><a class="tile" href="#/maps"><span>🗺️</span>Контурлы карта</a><a class="tile" href="#/lab"><span>🧪</span>Лаборатория</a><a class="tile" href="#/hw"><span>🏠</span>Үй тапсырмасы</a><a class="tile" href="#/me"><span>📊</span>Менің нәтижем</a><a class="tile" href="#/teacher"><span>🔐</span>Мұғалім</a></div>`;
   SECTIONS.forEach(([t,[a,b]])=>{h+=`<h2>${esc(t)}</h2><div class="card plist">`;
     for(let i=a;i<=b;i++){const on=!!PARA[i]&&isOpen(i),lock=!!PARA[i]&&!isOpen(i);h+=`<a href="${on?"#/p/"+i:"#"}" class="${on?"":"off"}"><span class="num">§${i}</span><span>${esc(TITLES[i-1])}</span>${done.has(i)?"✅":lock?"<small class='mut'>🔒 мұғалім ашады</small>":on?"":"<small class='mut'>жақында</small>"}</a>`}
     h+="</div>"});
@@ -95,14 +96,14 @@ function home(){
   app.innerHTML=h;$("#lo").onclick=e=>{e.preventDefault();logout()};
 }
 function topic(n){
-  const t=[["summary","📖","Конспект"],["audio","🎧","Аудио"],["terms","🃏","Терминдер"],["kviz","⚡","Квиз-тест"],["quiz","❓","Викторина"],["test","📝","Тест"],["nis","🏆","НИШ-тест"],["game","🎮","Ойын"],["ws","✍️","Жұмыс парағы"],["hw","🏠","Үй тапсырмасы"]];
+  const t=[["summary","📖","Конспект"],["audio","🎧","Аудио"],["terms","🃏","Терминдер"],["kviz","⚡","Квиз-тест"],["quiz","❓","Викторина"],["test","📝","Тест"],["nis","🏆","НИШ-тест"],["game","🎮","Ойын"],["ws","✍️","Жұмыс парағы"],["hw","🏠","Үй тапсырмасы"]].concat((LINKS[n]||[]).length?[["links","🎞️","Презентация / видео"]]:[]);
   app.innerHTML=`<a href="#/">← Барлық параграф</a><h1>§${n}. ${esc(TITLES[n-1])}</h1>
   <div class="grid">${t.map(x=>`<a class="tile" href="#/p/${n}/${x[0]}"><span>${x[1]}</span>${x[2]}</a>`).join("")}</div>`;
 }
 function topicPage(n,k){
   const P=PARA[n];if(!P)return home();
   const back=`<a href="#/p/${n}">← §${n}</a>`;
-  const fn={summary,audio,terms,kviz:()=>runChoice(n,"kviz"),quiz:()=>runChoice(n,"quiz"),test:()=>runChoice(n,"test"),nis:()=>runChoice(n,"nis"),game:gameHub,match:game,rush,memory,ws,hw}[k];
+  const fn={summary,audio,terms,kviz:()=>runChoice(n,"kviz"),quiz:()=>runChoice(n,"quiz"),test:()=>runChoice(n,"test"),nis:()=>runChoice(n,"nis"),game:gameHub,match:game,rush,memory,ws,hw,links:linksPage}[k];
   app.innerHTML=back+`<h1>§${n}. ${esc(TITLES[n-1])}</h1><div id="box"></div>`;
   fn&&fn(n,P,$("#box"));
 }
@@ -234,7 +235,7 @@ async function me(){
   const a=(await mine()).sort((x,y)=>y.ts-x.ts),au=a.filter(x=>x.pct!=null);
   if(location.hash!=="#/me")return;
   const avg=au.length?Math.round(au.reduce((s,x)=>s+x.pct,0)/au.length):null;
-  app.innerHTML=`<a href="#/">← Басты бет</a><h1>📊 Менің нәтижем</h1>`+
+  app.innerHTML=`<a href="#/">← Басты бет</a><h1>📊 Менің нәтижем</h1>`+analyticsHtml(a)+
   (avg!==null?`<div class="card"><div class="big">${avg}%</div><p style="text-align:center">Орташа үлгерім · баға <b>${grade(avg)}</b> · ${level(avg)}</p></div>`:"")+
   `<div class="card"><table><tr><th>Күні</th><th>Түрі</th><th>§</th><th>Нәтиже</th></tr>`+
   a.map(x=>`<tr><td>${new Date(x.ts).toLocaleDateString("kk-KZ")}</td><td>${TYPES[x.type]||x.type}</td><td>${x.para||"—"}</td><td>${x.type==="ws"?(x.grade?`<b>${x.grade}</b> ${esc(x.comment||"")}`:"⏳ тексерілуде"):x.pct+"% · <b>"+x.grade+"</b>"}</td></tr>`).join("")+`</table></div>`;
@@ -266,7 +267,7 @@ function renderTeacher(rows,tc){
   (pend.map(x=>`<div class="card"><b>${esc(x.name)}</b> · ${esc(x.cls)} · §${x.para} <span class="tag">${new Date(x.ts).toLocaleString("kk-KZ")}</span>`+
     x.ans.map(a=>`<p><span class="mut">${esc(a.q)}</span><br>${esc(a.a)}</p>`).join("")+
     `<select data-g="${x.id}"><option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option></select><input data-c="${x.id}" placeholder="Пікір (міндетті емес)"><button class="btn" data-s="${x.id}">Бағаны қою</button></div>`).join("")||"<div class='card'>Жаңа жұмыс жоқ</div>")+
-  (tc?teacherAdmin(tc):"")+`<button class="btn alt" id="csv" style="margin-top:12px">⬇️ Excel/CSV жүктеу</button>`;
+  teacherAnalyticsHtml(rows)+(tc?teacherAdmin(tc):"")+`<button class="btn alt" id="csv" style="margin-top:12px">⬇️ Excel/CSV жүктеу</button>`;
   if(tc)bindAdmin(tc);
   $("#pv").onclick=()=>{ls.set("jt_user",{name:"Мұғалім (тест)",cls:"—",token:"preview",preview:true});location.hash="#/";route()};
   $("#out").onclick=e=>{e.preventDefault();TP="";ls.set("jt_tp","");teacher()};
@@ -288,6 +289,7 @@ function teacherAdmin(tc){
   return `<h2>🔑 Сынып кодтары</h2><div class="card" id="cls">`+Object.entries(tc.classes).map(([k,v])=>`<div class="grid" style="margin:4px 0"><input data-ck="${esc(k)}" value="${esc(k)}" readonly><input data-cv="${esc(k)}" value="${esc(v)}"></div>`).join("")+
   `<div class="grid" style="margin-top:8px"><input id="nk" placeholder="Жаңа сынып (6Е)"><input id="nv" placeholder="Коды"></div><p class="mut">Кодты өзгертуге болады. Сыныбына сәйкес кодты оқушыларға бер.</p></div>
   <h2>📋 Сынып тізімдері</h2><div class="card">${oldSrv?"<p style='color:var(--bad)'>⚠️ Сервер жаңартылмаған: Apps Script-те «Новая версия» жасап, қайта орналастырыңыз.</p>":""}`+Object.keys(tc.classes).map(k=>`<b>${esc(k)}</b> <span class="mut">(${(tc.roster[k]||[]).length} оқушы; бос болса, кез келген аты қабылданады)</span><textarea data-rs="${esc(k)}" rows="5" placeholder="Әр жолға бір оқушы: Тегі Аты">${esc((tc.roster[k]||[]).join("\n"))}</textarea>`).join("")+`<p class="mut">Оқушы тек осы тізімдегі аты-жөнімен тіркеле алады. Әріптердің кіші қателерін және аты мен тегінің ретін жүйе кешіреді.</p></div>
+  <h2>🎞️ Презентация / видео сілтемелері</h2><div class="card"><input id="ln" type="number" min="1" max="60" placeholder="Параграф нөмірі (1–60)"><textarea id="lt" rows="4" placeholder="Әр жолға бір сілтеме: Атауы | https://сілтеме"></textarea><p class="mut">YouTube, Google Drive (файл), Google Slides сілтемелері тақырып ішінде көрінеді. Басқа сілтеме жаңа терезеде ашылады. Параметрлерді сақтау түймесін басуды ұмытпа.</p></div>
   <h2>🔓 Ашық тақырыптар (<span id="oc">${op.size}</span>/60)</h2><div class="card"><div style="display:flex;flex-wrap:wrap;gap:6px" id="og">`+
   Array.from({length:60},(_,i)=>`<button class="mt" data-o="${i+1}" style="width:54px;padding:8px 0;text-align:center;${op.has(i+1)?"background:var(--pri2);border-color:var(--pri)":""}">${i+1}</button>`).join("")+
   `</div><div class="grid" style="margin-top:10px"><input id="uN" type="number" min="0" max="60" placeholder="1…N ашу"><button class="btn alt" id="uB">1…N ашу</button></div>
@@ -299,11 +301,14 @@ function teacherAdmin(tc){
 function bindAdmin(tc){
   const op=new Set(tc.open),paint=()=>{app.querySelectorAll("[data-o]").forEach(b=>{const on=op.has(+b.dataset.o);b.style.background=on?"var(--pri2)":"";b.style.borderColor=on?"var(--pri)":""});$("#oc").textContent=op.size};
   app.querySelectorAll("[data-o]").forEach(b=>b.onclick=()=>{const n=+b.dataset.o;op.has(n)?op.delete(n):op.add(n);paint()});
+  const links=JSON.parse(JSON.stringify(tc.links||{}));let ln=0;
+  $("#ln").oninput=()=>{ln=+$("#ln").value;$("#lt").value=(links[ln]||[]).map(x=>x.t+" | "+x.u).join("\n")};
+  $("#lt").oninput=()=>{if(!ln)return;links[ln]=$("#lt").value.split("\n").map(s=>s.trim()).filter(Boolean).map(s=>{const p=s.split("|").map(x=>x.trim());return{t:p.length>1?p[0]:"Материал",u:p[p.length-1]}}).filter(x=>/^https?:\/\//i.test(x.u))};
   $("#uB").onclick=()=>{const n=+$("#uN").value;op.clear();for(let i=1;i<=n;i++)op.add(i);paint()};
   $("#svc").onclick=async()=>{const classes={};app.querySelectorAll("[data-ck]").forEach(k=>{const v=app.querySelector(`[data-cv="${k.dataset.ck}"]`).value.trim();if(v)classes[k.dataset.ck]=v});
     const nk=$("#nk").value.trim(),nv=$("#nv").value.trim();if(nk&&nv)classes[nk]=nv;
     const roster={};app.querySelectorAll("[data-rs]").forEach(t=>{roster[t.dataset.rs]=t.value.split("\n").map(x=>x.trim()).filter(Boolean)});
-    try{const r=await api({action:"setcfg",pass:TP,open:[...op],classes,roster});if(!r.ok)throw 0;alert("Сақталды ✅");teacher()}catch(e){alert("Қате: сақталмады")}};
+    try{const r=await api({action:"setcfg",pass:TP,open:[...op],classes,roster,links});if(!r.ok)throw 0;alert("Сақталды ✅");teacher()}catch(e){alert("Қате: сақталмады")}};
   app.querySelectorAll("[data-rp]").forEach(b=>b.onclick=async()=>{const u=tc.users[+b.dataset.rp];if(!confirm(u.name+" ("+u.cls+") құпиясөзін өшіру? Оқушы жаңадан құпиясөз жасайды."))return;
     try{const r=await api({action:"resetpw",pass:TP,name:u.name,cls:u.cls});if(!r.ok)throw 0;alert("Өшірілді");teacher()}catch(e){alert("Қате")}});
 }
